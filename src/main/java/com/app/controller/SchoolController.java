@@ -1,0 +1,57 @@
+package com.app.controller;
+
+import com.app.payload.request.SchoolRequestDto;
+import com.app.payload.response.ApiResponse;
+import com.app.service.ISchoolService;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/schools")
+public class SchoolController {
+
+	@Autowired
+    private ISchoolService schoolService;
+
+    // ----------- Register School -----------
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse> registerSchool(@RequestBody SchoolRequestDto request) {
+        return ResponseEntity.ok(schoolService.registerSchool(request));
+    }
+
+    // ----------- Activate School -----------
+    @PostMapping("/{schoolId}/activate")
+    public ResponseEntity<ApiResponse> activateSchool(
+            @PathVariable Integer schoolId,
+            @RequestParam String activationCode) {
+        return ResponseEntity.ok(schoolService.activateSchool(schoolId, activationCode));
+    }
+
+    // ----------- Update School -----------
+    @PutMapping("/{schoolId}")
+    public ResponseEntity<ApiResponse> updateSchool(
+            @PathVariable Integer schoolId,
+            @RequestBody SchoolRequestDto request) {
+        return ResponseEntity.ok(schoolService.updateSchool(schoolId, request));
+    }
+
+    // ----------- Delete School -----------
+    @DeleteMapping("/{schoolId}")
+    public ResponseEntity<ApiResponse> deleteSchool(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.deleteSchool(schoolId));
+    }
+
+    // ----------- Get School By Id -----------
+    @GetMapping("/{schoolId}")
+    public ResponseEntity<ApiResponse> getSchoolById(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getSchoolById(schoolId));
+    }
+
+    // ----------- Get All Schools -----------
+    @GetMapping
+    public ResponseEntity<ApiResponse> getAllSchools() {
+        return ResponseEntity.ok(schoolService.getAllSchools());
+    }
+}
