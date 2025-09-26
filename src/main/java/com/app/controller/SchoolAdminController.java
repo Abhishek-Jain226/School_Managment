@@ -1,14 +1,20 @@
 package com.app.controller;
 
-import com.app.payload.request.LoginRequestDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.app.payload.request.SchoolUserRequestDto;
+import com.app.payload.request.StaffCreateRequestDto;
 import com.app.payload.request.UserRequestDto;
 import com.app.payload.response.ApiResponse;
 import com.app.service.ISchoolAdminService;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/school-admin")
@@ -42,5 +48,10 @@ public class SchoolAdminController {
     @GetMapping("/dashboard/{schoolId}")
     public ResponseEntity<ApiResponse> getDashboardStats(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(schoolAdminService.getDashboardStats(schoolId));
+    }
+    
+    @PostMapping("/create-staff")
+    public ResponseEntity<ApiResponse> createStaff(@RequestBody StaffCreateRequestDto request) {
+        return ResponseEntity.ok(schoolAdminService.createStaffAndAssign(request));
     }
 }

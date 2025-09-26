@@ -1,12 +1,14 @@
-package com.app.service;
-
-import com.app.payload.request.UserRequestDto;
-import com.app.payload.response.ApiResponse;
-
-public interface IGateStaffService {
-	
-	ApiResponse registerGateStaff(UserRequestDto request);
-
-    ApiResponse getAllGateStaff(Integer schoolId);
-
-}
+//package com.app.service;
+//
+//import com.app.payload.request.GateEventRequestDto;
+//import com.app.payload.response.ApiResponse;
+//
+//public interface IGateStaffService {
+//
+//	ApiResponse getAssignedStudents(Integer schoolId);
+//
+//	ApiResponse markGateEntry(GateEventRequestDto request);
+//
+//	ApiResponse markGateExit(GateEventRequestDto request);
+//
+//}

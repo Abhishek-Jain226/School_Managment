@@ -81,16 +81,42 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
                 saved.getOwnerId());
     }
 
+//    @Override
+//    public ApiResponse activateOwner(Integer ownerId, String activationCode) {
+//        VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Vehicle Owner not found with ID: " + ownerId));
+//
+//       
+//        User user = owner.getUser();
+//        user.setIsActive(true);
+//        user.setUpdatedDate(LocalDateTime.now());
+//        userRepository.save(user);
+//
+//        return new ApiResponse(true, "Vehicle owner activated successfully", mapToResponse(owner));
+//    }
+    
     @Override
     public ApiResponse activateOwner(Integer ownerId, String activationCode) {
         VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle Owner not found with ID: " + ownerId));
 
        
-        User user = owner.getUser();
-        user.setIsActive(true);
-        user.setUpdatedDate(LocalDateTime.now());
-        userRepository.save(user);
+        User user = User.builder()
+                .userName(owner.getEmail().split("@")[0]) 
+                .email(owner.getEmail())
+                .contactNumber(owner.getContactNumber())
+                .isActive(true)
+                .createdBy("SYSTEM")
+                .createdDate(LocalDateTime.now())
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+     
+        owner.setUser(savedUser);
+        owner.setUpdatedBy("SYSTEM");
+        owner.setUpdatedDate(LocalDateTime.now());
+        vehicleOwnerRepository.save(owner);
 
         return new ApiResponse(true, "Vehicle owner activated successfully", mapToResponse(owner));
     }
@@ -145,7 +171,12 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 
         return new ApiResponse(true, "Vehicle owners fetched successfully", owners);
     }
-
+    @Override
+    public ApiResponse getVehicleOwnerByUserId(Integer userId) {
+        return vehicleOwnerRepository.findByUser_uId(userId)
+            .map(owner -> new ApiResponse(true, "Owner fetched successfully", mapToResponse(owner)))
+            .orElse(new ApiResponse(false, "No owner found for this userId", null));
+    }
     // ------------------ Private Mapper ------------------
     private VehicleOwnerResponseDto mapToResponse(VehicleOwner owner) {
         return VehicleOwnerResponseDto.builder()

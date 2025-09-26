@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class SchoolRequestDto {
+	
+	
 
 	@NotBlank(message = "School name is required")
 	@Size(max = 200, message = "School name must not exceed 200 characters")

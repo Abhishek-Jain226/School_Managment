@@ -16,6 +16,7 @@ import com.app.entity.User;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.LoginRequestDTO;
 import com.app.payload.request.SchoolUserRequestDto;
+import com.app.payload.request.StaffCreateRequestDto;
 import com.app.payload.request.UserRequestDto;
 import com.app.payload.response.ApiResponse;
 import com.app.payload.response.UserResponseDto;
@@ -170,4 +171,49 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
                 .updatedDate(user.getUpdatedDate())
                 .build();
     }
+
+    public ApiResponse createStaffAndAssign(StaffCreateRequestDto request) {
+        // 1) username uniqueness check
+        if (userRepository.findByUserName(request.getUserName()).isPresent()) {
+            return new ApiResponse(false, "Username already exists", null);
+        }
+
+        // 2) load School
+        School school = schoolRepository.findById(request.getSchoolId())
+                .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
+
+        // 3) load Role
+        Role role = roleRepository.findById(request.getRoleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with ID: " + request.getRoleId()));
+
+//        Role role = roleRepository.findByRoleName("GATE_STAFF")
+//                .orElseThrow(() -> new ResourceNotFoundException("Role OWNER not found"));
+        // 4) create User (encode password)
+        User user = User.builder()
+                .userName(request.getUserName())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .contactNumber(request.getContactNumber())
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
+                .build();
+
+        User saved = userRepository.save(user);
+
+        // 5) create SchoolUser mapping (user -> school -> role)
+        SchoolUser schoolUser = SchoolUser.builder()
+                .user(saved)
+                .school(school)
+                .role(role)
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
+                .build();
+
+        schoolUserRepository.save(schoolUser);
+
+        // 6) return created user summary
+        return new ApiResponse(true, "Staff created and assigned successfully", mapToResponse(saved));
+}
 }

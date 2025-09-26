@@ -16,5 +16,7 @@ public interface IVehicleOwnerService {
 	ApiResponse getVehicleOwnerById(Integer ownerId);
 
 	ApiResponse getAllVehicleOwners(Integer schoolId);
+	
+	ApiResponse getVehicleOwnerByUserId(Integer userId);
 
 }

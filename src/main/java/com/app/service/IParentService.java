@@ -15,5 +15,9 @@ public interface IParentService {
 	ApiResponse getParentById(Integer parentId);
 
 	ApiResponse getAllParents(Integer schoolId);
+	
+	ApiResponse getParentByUserId(Integer userId);
+	
+	ApiResponse getStudentByParentUserId(Integer userId);
 
 }

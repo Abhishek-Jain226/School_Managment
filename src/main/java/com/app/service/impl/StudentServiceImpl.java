@@ -118,23 +118,26 @@ public class StudentServiceImpl implements IStudentService {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
 
-        // If updating email, check duplicates
-        if (!student.getEmail().equals(request.getEmail()) &&
+        // duplicate checks (email, phone)
+        if (request.getEmail() != null && !student.getEmail().equals(request.getEmail()) &&
                 studentRepository.existsByEmail(request.getEmail())) {
             return new ApiResponse(false, "Student with this email already exists", null);
         }
 
-        // If updating contact number, check duplicates
-        if (!student.getPrimaryContactNumber().equals(request.getPrimaryContactNumber()) &&
+        if (request.getPrimaryContactNumber() != null &&
+                !student.getPrimaryContactNumber().equals(request.getPrimaryContactNumber()) &&
                 studentRepository.existsByPrimaryContactNumber(request.getPrimaryContactNumber())) {
             return new ApiResponse(false, "Student with this contact number already exists", null);
         }
 
-        // Validate school if changed
-        School school = schoolRepository.findById(request.getSchoolId())
-                .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
+        // ✅ update school only if provided
+        if (request.getSchoolId() != null) {
+            School school = schoolRepository.findById(request.getSchoolId())
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
+            student.setSchool(school);
+        }
 
-        // Update fields
+        // update fields (null checks optional)
         student.setFirstName(request.getFirstName());
         student.setMiddleName(request.getMiddleName());
         student.setLastName(request.getLastName());
@@ -142,7 +145,6 @@ public class StudentServiceImpl implements IStudentService {
         student.setClassName(request.getClassName());
         student.setSection(request.getSection());
         student.setStudentPhoto(request.getStudentPhoto());
-        student.setSchool(school);
         student.setMotherName(request.getMotherName());
         student.setFatherName(request.getFatherName());
         student.setPrimaryContactNumber(request.getPrimaryContactNumber());
@@ -156,6 +158,7 @@ public class StudentServiceImpl implements IStudentService {
 
         return new ApiResponse(true, "Student updated successfully", mapToResponse(updated));
     }
+
 
     @Override
     public ApiResponse deleteStudent(Integer studentId) {

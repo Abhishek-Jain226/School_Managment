@@ -22,6 +22,7 @@ import com.app.entity.SchoolUser;
 import com.app.entity.StudentParent;
 import com.app.entity.User;
 import com.app.entity.UserRole;
+import com.app.entity.VehicleOwner;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.PendingUserRequestDTO;
 import com.app.payload.response.ApiResponse;
@@ -34,6 +35,7 @@ import com.app.repository.SchoolUserRepository;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.UserRepository;
 import com.app.repository.UserRoleRepository;
+import com.app.repository.VehicleOwnerRepository;
 import com.app.service.IPendingUserService;
 
 import jakarta.mail.internet.MimeMessage;
@@ -66,6 +68,9 @@ public class PendingUserServiceImpl implements IPendingUserService {
 	
 	@Autowired
 	private DriverRepository driverRepository;
+	
+	@Autowired
+	private VehicleOwnerRepository vehicleOwnerRepository;
 	
 	@Value("${app.frontend.activation-url}")
 	private String activationBaseUrl;
@@ -246,7 +251,16 @@ public class PendingUserServiceImpl implements IPendingUserService {
             sp.setUpdatedBy("system");
             sp.setUpdatedDate(LocalDateTime.now());
             studentParentRepository.save(sp);
-        }else if ("DRIVER".equalsIgnoreCase(pending.getEntityType())) {
+        }else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {
+            VehicleOwner owner = vehicleOwnerRepository.findById(pending.getEntityId().intValue())
+                    .orElseThrow(() -> new ResourceNotFoundException("VehicleOwner not found"));
+
+            owner.setUser(savedUser);   // 
+            owner.setUpdatedBy("system");
+            owner.setUpdatedDate(LocalDateTime.now());
+            vehicleOwnerRepository.save(owner);
+        }
+        else if ("DRIVER".equalsIgnoreCase(pending.getEntityType())) {
             Driver driver = driverRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
 

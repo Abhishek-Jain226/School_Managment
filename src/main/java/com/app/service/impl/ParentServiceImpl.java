@@ -1,5 +1,15 @@
 package com.app.service.impl;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.app.entity.Student;
 import com.app.entity.StudentParent;
 import com.app.entity.User;
@@ -7,20 +17,11 @@ import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.StudentParentRequestDto;
 import com.app.payload.request.UserRequestDto;
 import com.app.payload.response.ApiResponse;
+import com.app.payload.response.StudentResponseDto;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.StudentRepository;
 import com.app.repository.UserRepository;
 import com.app.service.IParentService;
-
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -110,4 +111,58 @@ public class ParentServiceImpl implements IParentService {
 
         return new ApiResponse(true, "Parents fetched successfully", parents);
     }
+    @Override
+    public ApiResponse getParentByUserId(Integer userId) {
+        StudentParent sp = studentParentRepository.findByParentUser_uId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Parent not found for userId: " + userId));
+
+        Map<String, Object> resp = Map.of(
+            "studentParentId", sp.getStudentParentId(),
+            "relation", sp.getRelation(),
+            "parentUserId", sp.getParentUser().getUId(),
+            "parentName", sp.getParentUser().getUserName(),
+            "email", sp.getParentUser().getEmail(),
+            "contactNumber", sp.getParentUser().getContactNumber(),
+            "studentName", sp.getStudent().getFirstName() + " " + sp.getStudent().getLastName(),
+            "className", sp.getStudent().getClassName(),
+            "section", sp.getStudent().getSection()
+        );
+
+        return new ApiResponse(true, "Parent fetched successfully", resp);
+    }
+    
+    @Override
+    public ApiResponse getStudentByParentUserId(Integer userId) {
+        StudentParent sp = studentParentRepository.findByParentUser_uId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("No student linked with this parent"));
+
+        // ✅ सिर्फ Student return करेंगे
+        Student student = sp.getStudent();
+
+        return new ApiResponse(true, "Student fetched successfully", mapToResponse(student));
+    }
+
+    // Mapper for StudentResponseDto
+    private StudentResponseDto mapToResponse(Student student) {
+        return StudentResponseDto.builder()
+                .studentId(student.getStudentId())
+                .firstName(student.getFirstName())
+                .lastName(student.getLastName())
+                .className(student.getClassName())
+                .section(student.getSection())
+                .gender(student.getGender())
+                .motherName(student.getMotherName())
+                .fatherName(student.getFatherName())
+                .primaryContactNumber(student.getPrimaryContactNumber())
+                .alternateContactNumber(student.getAlternateContactNumber())
+                .email(student.getEmail())
+                .isActive(student.getIsActive())
+                .createdBy(student.getCreatedBy())
+                .createdDate(student.getCreatedDate())
+                .updatedBy(student.getUpdatedBy())
+                .updatedDate(student.getUpdatedDate())
+                .build();
+    }
+
+
 }

@@ -16,6 +16,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class StudentRequestDto {
+	
+	private Integer studentId;
 
 	@NotBlank(message = "First name is required")
 	@Size(max = 50, message = "First name cannot exceed 50 characters")

@@ -47,4 +47,16 @@ public class ParentController {
     public ResponseEntity<ApiResponse> getAllParents(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(parentService.getAllParents(schoolId));
     }
+    
+ // ----------- Get Parent By UserId -----------
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse> getParentByUserId(@PathVariable Integer userId) {
+        return ResponseEntity.ok(parentService.getParentByUserId(userId));
+    }
+    
+ // ----------- Get Student By Parent UserId -----------
+    @GetMapping("/user/{userId}/student")
+    public ResponseEntity<ApiResponse> getStudentByParentUserId(@PathVariable Integer userId) {
+        return ResponseEntity.ok(parentService.getStudentByParentUserId(userId));
+    }
 }

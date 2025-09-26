@@ -27,7 +27,7 @@ public class VehicleOwner {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer ownerId;
 
-    @ManyToOne
+    @ManyToOne(optional = true) 
     @JoinColumn(name = "u_id", nullable = false)
     private User user;
 

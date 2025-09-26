@@ -54,4 +54,10 @@ public class VehicleOwnerController {
     public ResponseEntity<ApiResponse> getAllOwners(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(vehicleOwnerService.getAllVehicleOwners(schoolId));
     }
+    
+ // ----------- Get Vehicle Owner By UserId -----------
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse> getOwnerByUserId(@PathVariable Integer userId) {
+        return ResponseEntity.ok(vehicleOwnerService.getVehicleOwnerByUserId(userId));
+    }
 }
