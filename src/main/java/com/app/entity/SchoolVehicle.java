@@ -29,7 +29,7 @@ public class SchoolVehicle {
     @JoinColumn(name = "owner_id", nullable = false)
     private VehicleOwner owner;
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = true)
     private Boolean isActive = true;
 
     @Column(name = "created_by", length = 50)

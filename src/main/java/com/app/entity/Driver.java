@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -33,8 +34,8 @@ public class Driver {
 	@Column(name = "driver_id")
 	private Integer driverId;
 
-	@ManyToOne
-	@JoinColumn(name = "u_id")
+	@OneToOne
+	@JoinColumn(name = "u_id", unique = true)
 	private User user;
 
 	@NotBlank(message = "Driver name is required")

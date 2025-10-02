@@ -19,5 +19,11 @@ public interface IVehicleService {
 	ApiResponse assignVehicleToSchool(SchoolVehicleRequestDto request);
 	
 	long getVehicleCountBySchool(Integer schoolId);
+	
+	//ApiResponse getVehiclesByOwner(Integer ownerId);
+	
+	ApiResponse getVehiclesByCreatedBy(String username);
+	
+	
 
 }

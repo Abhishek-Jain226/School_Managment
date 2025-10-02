@@ -26,6 +26,7 @@ public class VehicleRequestDto {
 	private String vehiclePhoto; // optional (stored as Base64 / URL)
 	
 	private VehicleType vehicleType;
+	
 
 	private Boolean isActive = true;
 
@@ -35,5 +36,7 @@ public class VehicleRequestDto {
 
 	@Size(max = 50, message = "Updated by cannot exceed 50 characters")
 	private String updatedBy;
+
+	
 
 }

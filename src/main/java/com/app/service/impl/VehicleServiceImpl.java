@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.app.entity.School;
 import com.app.entity.SchoolVehicle;
 import com.app.entity.Vehicle;
+import com.app.entity.VehicleOwner;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.SchoolVehicleRequestDto;
 import com.app.payload.request.VehicleRequestDto;
@@ -17,6 +18,7 @@ import com.app.payload.response.ApiResponse;
 import com.app.payload.response.VehicleResponseDto;
 import com.app.repository.SchoolRepository;
 import com.app.repository.SchoolVehicleRepository;
+import com.app.repository.VehicleOwnerRepository;
 import com.app.repository.VehicleRepository;
 import com.app.service.IVehicleService;
 
@@ -31,6 +33,9 @@ public class VehicleServiceImpl implements IVehicleService {
     
     @Autowired
     private SchoolVehicleRepository schoolVehicleRepository;
+    
+    @Autowired
+    private VehicleOwnerRepository ownerRepository;
 
     @Override
     public ApiResponse createVehicle(VehicleRequestDto request) {
@@ -118,11 +123,18 @@ public class VehicleServiceImpl implements IVehicleService {
 
         School school = schoolRepository.findById(request.getSchoolId())
                 .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
+        
+        VehicleOwner owner = ownerRepository.findById(request.getOwnerId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Owner not found with ID: " + request.getOwnerId()
+                ));
 
         // SchoolVehicle mapping create
         SchoolVehicle schoolVehicle = SchoolVehicle.builder()
                 .school(school)
                 .vehicle(vehicle)
+                .owner(owner)  // agar owner bhi required hai
+                .isActive(true)  // ✅ FIX
                 .updatedBy(request.getUpdatedBy())
                 .updatedDate(LocalDateTime.now())
                 .build();
@@ -151,4 +163,26 @@ public class VehicleServiceImpl implements IVehicleService {
     public long getVehicleCountBySchool(Integer schoolId) {
         return schoolVehicleRepository.countBySchool_SchoolId(schoolId);
     }
+    
+//    @Override
+//    public ApiResponse getVehiclesByOwner(Integer ownerId) {
+//        List<Vehicle> vehicles = vehicleRepository.findByOwner_OwnerId(ownerId);
+//
+//        List<VehicleResponseDto> response = vehicles.stream()
+//                .map(this::mapToResponse)
+//                .collect(Collectors.toList());
+//
+//        return new ApiResponse(true, "Vehicles fetched successfully", response);
+//    }
+    @Override
+    public ApiResponse getVehiclesByCreatedBy(String username) {
+        List<Vehicle> vehicles = vehicleRepository.findByCreatedBy(username);
+        List<VehicleResponseDto> response = vehicles.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return new ApiResponse(true, "Vehicles fetched successfully", response);
+    }
+
+	
+
 }

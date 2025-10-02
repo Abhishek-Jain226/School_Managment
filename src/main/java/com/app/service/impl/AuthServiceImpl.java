@@ -18,6 +18,7 @@ import com.app.entity.PasswordResetToken;
 import com.app.entity.School;
 import com.app.entity.SchoolUser;
 import com.app.entity.User;
+import com.app.entity.VehicleOwner;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.ForgotPasswordRequest;
 import com.app.payload.request.LoginRequestDTO;
@@ -27,6 +28,7 @@ import com.app.repository.PasswordResetTokenRepository;
 import com.app.repository.SchoolUserRepository;
 import com.app.repository.UserRepository;
 import com.app.repository.UserRoleRepository;
+import com.app.repository.VehicleOwnerRepository;
 import com.app.security.JwtUtil;
 import com.app.service.IAuthService;
 
@@ -51,6 +53,9 @@ public class AuthServiceImpl implements IAuthService{
 	
 	@Autowired
 	private SchoolUserRepository schoolUserRepository;
+	
+	@Autowired
+	private VehicleOwnerRepository ownerRepository;
 	
 	
 	@Override
@@ -133,11 +138,24 @@ public class AuthServiceImpl implements IAuthService{
 	 // 
 	    Integer schoolId = null;
 	    String schoolName = null;
+	    Integer ownerId = null;
 	    Optional<SchoolUser> schoolUserOpt = schoolUserRepository.findByUser(user);
 	    if (schoolUserOpt.isPresent()) {
 	        School school = schoolUserOpt.get().getSchool();
 	        schoolId = school.getSchoolId();
 	        schoolName = school.getSchoolName();
+	    }
+	    // ✅ Agar Vehicle Owner hai
+	    if (roles.contains("VEHICLE_OWNER")) {
+	        VehicleOwner owner = ownerRepository.findByUser(user)
+	                .orElseThrow(() -> new ResourceNotFoundException("Owner not found for user: " + user.getUserName()));
+	        ownerId = owner.getOwnerId();
+	       
+	        if (schoolUserOpt.isPresent()) {
+	            School school = schoolUserOpt.get().getSchool();
+	            schoolId = school.getSchoolId();
+	            schoolName = school.getSchoolName();
+	        }
 	    }
 
 	    Map<String, Object> data = new HashMap<>();
@@ -148,6 +166,7 @@ public class AuthServiceImpl implements IAuthService{
 	    data.put("roles", roles);
 	    data.put("schoolId", schoolId);
 	    data.put("schoolName", schoolName);
+	    data.put("ownerId", ownerId); 
 
 	    return new ApiResponse(true, "Login successful", data);
 

@@ -1,4 +1,4 @@
-package com.app.service.impl;
+	package com.app.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -251,15 +251,46 @@ public class PendingUserServiceImpl implements IPendingUserService {
             sp.setUpdatedBy("system");
             sp.setUpdatedDate(LocalDateTime.now());
             studentParentRepository.save(sp);
-        }else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {
+        }
+        
+        else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {
             VehicleOwner owner = vehicleOwnerRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("VehicleOwner not found"));
 
-            owner.setUser(savedUser);   // 
+            owner.setUser(savedUser);
             owner.setUpdatedBy("system");
             owner.setUpdatedDate(LocalDateTime.now());
             vehicleOwnerRepository.save(owner);
+
+            // ✅ School detect from PendingUser.createdBy (admin)
+            User adminUser = userRepository.findByUserName(pending.getCreatedBy())
+                    .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+
+            SchoolUser adminSchoolUser = schoolUserRepository.findByUser(adminUser)
+                    .orElseThrow(() -> new ResourceNotFoundException("Admin is not mapped to any school"));
+
+            School school = adminSchoolUser.getSchool();
+
+            // ✅ VehicleOwner ko bhi school ke sath map karo
+            SchoolUser schoolUser = SchoolUser.builder()
+                    .school(school)
+                    .user(savedUser)
+                    .role(pending.getRole())
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            schoolUserRepository.save(schoolUser);
         }
+//        }else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {
+//            VehicleOwner owner = vehicleOwnerRepository.findById(pending.getEntityId().intValue())
+//                    .orElseThrow(() -> new ResourceNotFoundException("VehicleOwner not found"));
+//
+//            owner.setUser(savedUser);   // 
+//            owner.setUpdatedBy("system");
+//            owner.setUpdatedDate(LocalDateTime.now());
+//            vehicleOwnerRepository.save(owner);
+//        }
         else if ("DRIVER".equalsIgnoreCase(pending.getEntityType())) {
             Driver driver = driverRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));

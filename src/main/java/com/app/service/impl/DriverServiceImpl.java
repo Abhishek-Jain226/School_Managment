@@ -41,6 +41,10 @@ public class DriverServiceImpl implements IDriverService {
         // Check if user exists
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + request.getUserId()));
+        
+        if (driverRepository.existsByUser(user)) {
+            return new ApiResponse(false, "User already has a driver record", null);
+        }
 
         // Check duplicate driver contact
         if (driverRepository.existsByDriverContactNumber(request.getDriverContactNumber())) {

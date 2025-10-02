@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class VehicleOwnerRequestDto {
 
-	@NotNull(message = "User ID is required")
-	private Integer userId;
+//	@NotNull(message = "User ID is required")
+//	private Integer userId;
 
 	@NotBlank(message = "Owner name is required")
 	@Size(min = 3, max = 150, message = "Owner name must be between 3 and 150 characters")

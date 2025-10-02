@@ -15,6 +15,17 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Integer> {
 	@Query("SELECT v FROM Vehicle v JOIN SchoolVehicle sv ON v.id = sv.vehicle.id WHERE sv.school.id = :schoolId")
 	List<Vehicle> findBySchoolId(@Param("schoolId") Integer schoolId);;
 	
+	// ✅ Directly fetch vehicles created/owned by ownerId
+//    @Query("SELECT v FROM Vehicle v WHERE v.createdBy = :createdBy")
+//    List<Vehicle> findByCreatedBy(@Param("createdBy") String createdBy);
+	
+	List<Vehicle> findByCreatedBy(String createdBy);
+    
+    
+   
+
+
+	
 	
 
 }
