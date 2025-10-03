@@ -32,9 +32,7 @@ public class User {
 	@Column(name = "password")
 	private String password;
 
-//	@Email(message = "Email should be valid")
-//	@NotBlank(message = "Email is required")
-//	@Column(name = "email", nullable = false, unique = true, length = 100)
+	@Column(name = "email", unique = true, length = 100)
 	private String email;
 
 	@NotBlank(message = "Contact number is required")

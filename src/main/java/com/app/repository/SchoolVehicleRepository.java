@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.app.entity.SchoolVehicle;
 import com.app.entity.Vehicle;
+import com.app.entity.School;
 
 public interface SchoolVehicleRepository extends JpaRepository<SchoolVehicle, Integer> {
 
@@ -17,5 +18,7 @@ public interface SchoolVehicleRepository extends JpaRepository<SchoolVehicle, In
 //	List<Vehicle> findVehiclesByOwnerId(@Param("ownerId") Integer ownerId);
 	
 	List<SchoolVehicle> findByOwner_OwnerId(Integer ownerId);
+
+    boolean existsBySchoolAndVehicle(School school, Vehicle vehicle);
 
 }

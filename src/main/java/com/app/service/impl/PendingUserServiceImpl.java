@@ -109,19 +109,36 @@ public class PendingUserServiceImpl implements IPendingUserService {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true);
 
-            String html = "<p>Hello,</p>"
-                    + "<p>Please activate your account by clicking the link below:</p>"
-                    + "<p><a href=\"" + activationUrl + "\">" + activationUrl + "</a></p>"
-                    + "<p>This link is valid for 24 hours.</p>";
+            String html = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background-color: #1E3A8A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2 style="margin: 0;">Welcome to Kids Vehicle Tracking System</h2>
+                    </div>
+                    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px;">
+                        <p style="font-size: 16px; color: #333;">Thank you for registering your school with us!</p>
+                        <p style="color: #666;">To complete your registration and activate your school admin account, please click the button below:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="%s" style="background-color: #1E3A8A; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Activate Account</a>
+                        </div>
+                        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                            <p style="margin: 0; color: #856404;"><strong>Important:</strong> This link is valid for 24 hours only.</p>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">If you didn't request this registration, please ignore this email.</p>
+                        <hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">
+                        <p style="color: #6c757d; font-size: 12px; text-align: center; margin: 0;">Kids Vehicle Tracking System - School Management</p>
+                    </div>
+                </div>
+                """.formatted(activationUrl);
 
             helper.setText(html, true);
             helper.setTo(to);
-            helper.setSubject("Account Activation - Kids Vehicle Tracking");
-            helper.setFrom("jainshab751@gmail.com");
+            helper.setSubject("Activate Your School Account - Kids Vehicle Tracking");
+            helper.setFrom("noreply@kidsvt.com");
             mailSender.send(msg);
 
-            System.out.println("Activation link (debug): " + activationUrl);
+            System.out.println("Activation email sent successfully to: " + to);
         } catch (Exception ex) {
+            System.err.println("Failed to send activation email to: " + to);
             ex.printStackTrace();
         }
     }
@@ -194,6 +211,7 @@ public class PendingUserServiceImpl implements IPendingUserService {
     }
 
  // -------- COMPLETE Registration --------
+    @Override
     public ApiResponse completeRegistration(String token, String rawPassword, String userName) {
         PendingUser pending = pendingUserRepository.findByToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid token"));

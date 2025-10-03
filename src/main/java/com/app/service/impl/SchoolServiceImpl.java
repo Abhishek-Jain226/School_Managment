@@ -34,6 +34,16 @@ public class SchoolServiceImpl implements ISchoolService {
 
     @Override
     public ApiResponse registerSchool(SchoolRequestDto request) {
+        // Check for duplicate email
+        if (schoolRepository.existsByEmail(request.getEmail())) {
+            return new ApiResponse(false, "School with this email already exists", null);
+        }
+        
+        // Check for duplicate registration number
+        if (schoolRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
+            return new ApiResponse(false, "School with this registration number already exists", null);
+        }
+        
         // Generate unique school code
         String schoolCode = "SCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
@@ -94,6 +104,35 @@ public class SchoolServiceImpl implements ISchoolService {
         School updated = schoolRepository.save(school);
 
         return new ApiResponse(true, "School activated successfully", mapToResponse(updated));
+    }
+
+    @Override
+    public ApiResponse activateSchoolAccount(Integer schoolId, String activationToken) {
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+        // Verify activation token from pending user
+        try {
+            ApiResponse tokenResponse = pendingUserService.verifyPendingUser(activationToken);
+            if (!tokenResponse.isSuccess()) {
+                return new ApiResponse(false, "Invalid activation token", null);
+            }
+            
+            // Check if token is for this school
+            Map<String, Object> tokenData = (Map<String, Object>) tokenResponse.getData();
+            if (!"SCHOOL".equalsIgnoreCase((String) tokenData.get("entityType")) ||
+                !schoolId.equals(((Number) tokenData.get("entityId")).intValue())) {
+                return new ApiResponse(false, "Token does not match this school", null);
+            }
+        } catch (Exception e) {
+            return new ApiResponse(false, "Invalid activation token", null);
+        }
+
+        school.setIsActive(true);
+        school.setUpdatedDate(LocalDateTime.now());
+        School updated = schoolRepository.save(school);
+
+        return new ApiResponse(true, "School account activated successfully", mapToResponse(updated));
     }
 
     @Override

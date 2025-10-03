@@ -23,9 +23,12 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http.csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-				.authorizeHttpRequests(
-						auth -> auth.requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**","/api/users/register","/api/**","/activation")
-								.permitAll().anyRequest().authenticated())
+                .authorizeHttpRequests(
+                        auth -> auth
+                                .requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**", "/activation","/api/**")
+                                .permitAll()
+                                .anyRequest()
+                                .authenticated())
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();

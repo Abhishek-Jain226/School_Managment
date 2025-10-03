@@ -12,13 +12,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "school_user")
+@Table(name = "school_user", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_school_user", columnNames = {"school_id", "u_id"})
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

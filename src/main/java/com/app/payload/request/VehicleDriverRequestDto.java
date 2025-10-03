@@ -1,5 +1,7 @@
 package com.app.payload.request;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -20,6 +22,9 @@ public class VehicleDriverRequestDto {
 	@NotNull(message = "Driver ID is required")
 	private Integer driverId;
 
+	@NotNull(message = "School ID is required")
+	private Integer schoolId;
+
 	@NotNull(message = "Primary flag is required")
 	private Boolean isPrimary;
 
@@ -31,5 +36,9 @@ public class VehicleDriverRequestDto {
 
 	@Size(max = 50, message = "Updated by cannot exceed 50 characters")
 	private String updatedBy;
+
+	// Optional scheduling
+	private LocalDate startDate;
+	private LocalDate endDate;
 
 }

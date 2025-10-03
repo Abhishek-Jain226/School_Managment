@@ -10,13 +10,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@Table(name = "trips")
+@Table(name = "trips", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_trip_school_vehicle_number", columnNames = {"school_id", "vehicle_id", "trip_number"})
+})
 @NoArgsConstructor
 @AllArgsConstructor
 public class Trip {

@@ -2,6 +2,7 @@ package com.app.payload.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,7 @@ public class SchoolRequestDto {
 	
 
 	@NotBlank(message = "School name is required")
-	@Size(max = 200, message = "School name must not exceed 200 characters")
+	@Size(min = 2, max = 200, message = "School name must be between 2 and 200 characters")
 	private String schoolName;
 
 	@Size(max = 100, message = "School type must not exceed 100 characters")
@@ -27,7 +28,7 @@ public class SchoolRequestDto {
 	private String affiliationBoard;
 
 	@NotBlank(message = "Registration number is required")
-	@Size(max = 100, message = "Registration number must not exceed 100 characters")
+	@Size(min = 3, max = 100, message = "Registration number must be between 3 and 100 characters")
 	private String registrationNumber;
 
 	@NotBlank(message = "Address is required")
@@ -47,11 +48,11 @@ public class SchoolRequestDto {
 	private String state;
 
 	@NotBlank(message = "Pincode is required")
-	@Size(max = 20, message = "Pincode must not exceed 20 characters")
+	@Pattern(regexp = "^[0-9]{6}$", message = "Pincode must be exactly 6 digits")
 	private String pincode;
 
 	@NotBlank(message = "Contact number is required")
-	@Size(min = 10, max = 20, message = "Contact number must be between 10 and 20 digits")
+	@Pattern(regexp = "^[0-9]{10}$", message = "Contact number must be exactly 10 digits")
 	private String contactNo;
 
 	@Email(message = "Invalid email format")

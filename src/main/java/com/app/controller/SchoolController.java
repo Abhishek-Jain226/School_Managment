@@ -29,6 +29,14 @@ public class SchoolController {
         return ResponseEntity.ok(schoolService.activateSchool(schoolId, activationCode));
     }
 
+    // ----------- Activate School Account (New) -----------
+    @PostMapping("/{schoolId}/activate-school")
+    public ResponseEntity<ApiResponse> activateSchoolAccount(
+            @PathVariable Integer schoolId,
+            @RequestParam String activationToken) {
+        return ResponseEntity.ok(schoolService.activateSchoolAccount(schoolId, activationToken));
+    }
+
     // ----------- Update School -----------
     @PutMapping("/{schoolId}")
     public ResponseEntity<ApiResponse> updateSchool(

@@ -9,6 +9,8 @@ public interface ISchoolService {
 
 	ApiResponse activateSchool(Integer schoolId, String activationCode);
 
+	ApiResponse activateSchoolAccount(Integer schoolId, String activationToken);
+
 	ApiResponse updateSchool(Integer schoolId, SchoolRequestDto request);
 
 	ApiResponse deleteSchool(Integer schoolId);
