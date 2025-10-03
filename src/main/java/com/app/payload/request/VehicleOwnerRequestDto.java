@@ -1,7 +1,7 @@
 package com.app.payload.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -15,9 +15,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class VehicleOwnerRequestDto {
 
-//	@NotNull(message = "User ID is required")
-//	private Integer userId;
-
 	@NotBlank(message = "Owner name is required")
 	@Size(min = 3, max = 150, message = "Owner name must be between 3 and 150 characters")
 	private String name;
@@ -26,6 +23,8 @@ public class VehicleOwnerRequestDto {
 	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Contact number must be a valid 10-digit Indian mobile number")
 	private String contactNumber;
 	
+	@Email(message = "Invalid email format")
+	@Size(max = 150, message = "Email must not exceed 150 characters")
 	private String email;
 
 	@NotBlank(message = "Address is required")

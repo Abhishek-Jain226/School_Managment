@@ -58,7 +58,26 @@ public class StudentServiceImpl implements IStudentService {
         School school = schoolRepository.findById(request.getSchoolId())
                 .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
 
-        // 2. Save student
+        // 2. Check for duplicate email
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            if (studentRepository.existsByEmail(request.getEmail())) {
+                return new ApiResponse(false, "Student with this email already exists", null);
+            }
+        }
+
+        // 3. Check for duplicate primary contact
+        if (studentRepository.existsByPrimaryContactNumber(request.getPrimaryContactNumber())) {
+            return new ApiResponse(false, "Student with this primary contact number already exists", null);
+        }
+
+        // 4. Check for duplicate alternate contact (if provided)
+        if (request.getAlternateContactNumber() != null && !request.getAlternateContactNumber().trim().isEmpty()) {
+            if (studentRepository.existsByAlternateContactNumber(request.getAlternateContactNumber())) {
+                return new ApiResponse(false, "Student with this alternate contact number already exists", null);
+            }
+        }
+
+        // 5. Save student
         Student student = Student.builder()
                 .firstName(request.getFirstName())
                 .middleName(request.getMiddleName())

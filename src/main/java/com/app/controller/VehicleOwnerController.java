@@ -60,4 +60,13 @@ public class VehicleOwnerController {
     public ResponseEntity<ApiResponse> getOwnerByUserId(@PathVariable Integer userId) {
         return ResponseEntity.ok(vehicleOwnerService.getVehicleOwnerByUserId(userId));
     }
+    
+    // ----------- Associate Existing Vehicle Owner with School -----------
+    @PostMapping("/{ownerId}/associate-school")
+    public ResponseEntity<ApiResponse> associateOwnerWithSchool(
+            @PathVariable Integer ownerId,
+            @RequestParam Integer schoolId,
+            @RequestParam String createdBy) {
+        return ResponseEntity.ok(vehicleOwnerService.associateOwnerWithSchool(ownerId, schoolId, createdBy));
+    }
 }

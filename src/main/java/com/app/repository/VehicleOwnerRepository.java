@@ -14,7 +14,13 @@ public interface VehicleOwnerRepository extends JpaRepository<VehicleOwner, Inte
 	Optional<VehicleOwner> findByUser(User user);
 	
 	boolean existsByUser(User user);
-
 	
+	boolean existsByEmail(String email);
+	
+	boolean existsByContactNumber(String contactNumber);
+	
+	Optional<VehicleOwner> findByEmail(String email);
+	
+	Optional<VehicleOwner> findByContactNumber(String contactNumber);
 
 }

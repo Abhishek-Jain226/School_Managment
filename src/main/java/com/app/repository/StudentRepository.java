@@ -13,6 +13,8 @@ public interface StudentRepository extends JpaRepository<Student, Integer> {
 	boolean existsByEmail(String email);
 
 	boolean existsByPrimaryContactNumber(String primaryContactNumber);
+	
+	boolean existsByAlternateContactNumber(String alternateContactNumber);
 
 	List<Student> findBySchoolSchoolId(Integer schoolId);
 	

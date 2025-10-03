@@ -121,7 +121,31 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 	
 	@Override
 	public ApiResponse registerVehicleOwner(VehicleOwnerRequestDto request) {
-	    // ✅ Pehle VehicleOwner save karo bina User ke
+	    // Check if vehicle owner already exists by email or contact number
+	    VehicleOwner existingOwner = null;
+	    
+	    if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+	        existingOwner = vehicleOwnerRepository.findByEmail(request.getEmail()).orElse(null);
+	    }
+	    
+	    if (existingOwner == null) {
+	        existingOwner = vehicleOwnerRepository.findByContactNumber(request.getContactNumber()).orElse(null);
+	    }
+
+	    if (existingOwner != null) {
+	        // Vehicle owner already exists, return existing owner info for school mapping
+	        return new ApiResponse(false, 
+	            "Vehicle owner already exists with this email/contact number. Please use the existing owner for school association.", 
+	            Map.of(
+	                "existingOwnerId", existingOwner.getOwnerId(),
+	                "existingOwnerName", existingOwner.getName(),
+	                "existingOwnerEmail", existingOwner.getEmail(),
+	                "existingOwnerContact", existingOwner.getContactNumber(),
+	                "action", "USE_EXISTING"
+	            ));
+	    }
+
+	    // Create new VehicleOwner entity (without User initially)
 	    VehicleOwner owner = VehicleOwner.builder()
 	            .name(request.getName())
 	            .contactNumber(request.getContactNumber())
@@ -133,20 +157,11 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 
 	    VehicleOwner savedOwner = vehicleOwnerRepository.save(owner);
 
-	    // ✅ VEHICLE_OWNER role load karo
+	    // Get VEHICLE_OWNER role
 	    Role role = roleRepository.findByRoleName("VEHICLE_OWNER")
 	            .orElseThrow(() -> new ResourceNotFoundException("Role VEHICLE_OWNER not found"));
 
-	    // ✅ CreatedBy (SchoolAdmin) ke school detect karo
-	    User creator = userRepository.findByUserName(request.getCreatedBy())
-	            .orElseThrow(() -> new ResourceNotFoundException("Creator not found"));
-
-	    SchoolUser adminSchoolUser = schoolUserRepository.findByUser(creator)
-	            .orElseThrow(() -> new ResourceNotFoundException("Admin is not mapped to any school"));
-
-	    School school = adminSchoolUser.getSchool();
-
-	    // ✅ PendingUser entry banao (User activation link ke liye)
+	    // Create PendingUser entry for activation
 	    PendingUserRequestDTO pendingReq = PendingUserRequestDTO.builder()
 	            .entityType("VEHICLE_OWNER")
 	            .entityId(savedOwner.getOwnerId().longValue())  // 👈 VehicleOwner ka id
@@ -263,11 +278,53 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
             .map(owner -> new ApiResponse(true, "Owner fetched successfully", mapToResponse(owner)))
             .orElse(new ApiResponse(false, "No owner found for this userId", null));
     }
+
+    @Override
+    public ApiResponse associateOwnerWithSchool(Integer ownerId, Integer schoolId, String createdBy) {
+        // Validate vehicle owner exists
+        VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ID: " + ownerId));
+
+        // Validate school exists
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+        // Get VEHICLE_OWNER role
+        Role role = roleRepository.findByRoleName("VEHICLE_OWNER")
+                .orElseThrow(() -> new ResourceNotFoundException("Role VEHICLE_OWNER not found"));
+
+        // Check if association already exists
+        if (schoolUserRepository.existsBySchoolAndUserAndRole(school, owner.getUser(), role)) {
+            return new ApiResponse(false, "Vehicle owner is already associated with this school", null);
+        }
+
+        // Create SchoolUser association
+        SchoolUser schoolUser = SchoolUser.builder()
+                .school(school)
+                .user(owner.getUser())
+                .role(role)
+                .isActive(true)
+                .createdBy(createdBy)
+                .createdDate(LocalDateTime.now())
+                .build();
+
+        schoolUserRepository.save(schoolUser);
+
+        return new ApiResponse(true, 
+            "Vehicle owner successfully associated with school", 
+            Map.of(
+                "ownerId", ownerId,
+                "schoolId", schoolId,
+                "ownerName", owner.getName(),
+                "schoolName", school.getSchoolName()
+            ));
+    }
+
     // ------------------ Private Mapper ------------------
     private VehicleOwnerResponseDto mapToResponse(VehicleOwner owner) {
         return VehicleOwnerResponseDto.builder()
                 .ownerId(owner.getOwnerId())
-                .userId(owner.getUser().getUId())
+                .userId(owner.getUser() != null ? owner.getUser().getUId() : null)
                 .name(owner.getName())
                 .contactNumber(owner.getContactNumber())
                 .address(owner.getAddress())

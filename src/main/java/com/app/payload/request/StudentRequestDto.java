@@ -5,6 +5,7 @@ import com.app.Enum.GenderType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -56,14 +57,14 @@ public class StudentRequestDto {
 	private String fatherName;
 
 	@NotBlank(message = "Primary contact number is required")
-	@Size(min = 10, max = 15, message = "Primary contact number must be between 10 and 15 digits")
+	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Primary contact number must be a valid 10-digit Indian mobile number")
 	private String primaryContactNumber;
 
-	@Size(min = 10, max = 15, message = "Alternate contact number must be between 10 and 15 digits")
+	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Alternate contact number must be a valid 10-digit Indian mobile number")
 	private String alternateContactNumber;
 
-	//@Email(message = "Invalid email format")
-	//@Size(max = 100, message = "Email cannot exceed 100 characters")
+	@Email(message = "Invalid email format")
+	@Size(max = 150, message = "Email cannot exceed 150 characters")
 	private String email;
 	
 	// New field

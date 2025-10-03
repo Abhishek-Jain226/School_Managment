@@ -18,5 +18,7 @@ public interface IVehicleOwnerService {
 	ApiResponse getAllVehicleOwners(Integer schoolId);
 	
 	ApiResponse getVehicleOwnerByUserId(Integer userId);
+	
+	ApiResponse associateOwnerWithSchool(Integer ownerId, Integer schoolId, String createdBy);
 
 }
