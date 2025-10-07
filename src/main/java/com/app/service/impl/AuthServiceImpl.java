@@ -29,6 +29,8 @@ import com.app.repository.SchoolUserRepository;
 import com.app.repository.UserRepository;
 import com.app.repository.UserRoleRepository;
 import com.app.repository.VehicleOwnerRepository;
+import com.app.repository.DriverRepository;
+import com.app.entity.Driver;
 import com.app.security.JwtUtil;
 import com.app.service.IAuthService;
 
@@ -56,6 +58,9 @@ public class AuthServiceImpl implements IAuthService{
 	
 	@Autowired
 	private VehicleOwnerRepository ownerRepository;
+	
+	@Autowired
+	private DriverRepository driverRepository;
 	
 	
 	@Override
@@ -139,6 +144,7 @@ public class AuthServiceImpl implements IAuthService{
 	    Integer schoolId = null;
 	    String schoolName = null;
 	    Integer ownerId = null;
+	    Integer driverId = null;
 	    Optional<SchoolUser> schoolUserOpt = schoolUserRepository.findByUser(user);
 	    if (schoolUserOpt.isPresent()) {
 	        School school = schoolUserOpt.get().getSchool();
@@ -157,6 +163,28 @@ public class AuthServiceImpl implements IAuthService{
 	            schoolName = school.getSchoolName();
 	        }
 	    }
+	    
+	    // ✅ Agar Driver hai
+	    if (roles.contains("DRIVER")) {
+	        System.out.println("🔍 User has DRIVER role, looking up driver record for user: " + user.getUserName());
+	        try {
+	            Driver driver = driverRepository.findByUser(user)
+	                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found for user: " + user.getUserName()));
+	            driverId = driver.getDriverId();
+	            System.out.println("🔍 Driver ID found: " + driverId);
+	        } catch (Exception e) {
+	            System.out.println("⚠️ Error finding driver: " + e.getMessage());
+	            e.printStackTrace();
+	        }
+	       
+	        if (schoolUserOpt.isPresent()) {
+	            School school = schoolUserOpt.get().getSchool();
+	            schoolId = school.getSchoolId();
+	            schoolName = school.getSchoolName();
+	        }
+	    } else {
+	        System.out.println("🔍 User does not have DRIVER role. Roles: " + roles);
+	    }
 
 	    Map<String, Object> data = new HashMap<>();
 	    data.put("token", token);
@@ -166,7 +194,11 @@ public class AuthServiceImpl implements IAuthService{
 	    data.put("roles", roles);
 	    data.put("schoolId", schoolId);
 	    data.put("schoolName", schoolName);
-	    data.put("ownerId", ownerId); 
+	    data.put("ownerId", ownerId);
+	    data.put("driverId", driverId);
+
+	    System.out.println("🔍 Final login response data: " + data);
+	    System.out.println("🔍 Driver ID in final response: " + driverId);
 
 	    return new ApiResponse(true, "Login successful", data);
 

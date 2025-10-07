@@ -62,4 +62,16 @@ public class SchoolController {
     public ResponseEntity<ApiResponse> getAllSchools() {
         return ResponseEntity.ok(schoolService.getAllSchools());
     }
+
+    // ----------- Get Vehicles in Transit for School -----------
+    @GetMapping("/{schoolId}/vehicles-in-transit")
+    public ResponseEntity<ApiResponse> getVehiclesInTransit(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getVehiclesInTransit(schoolId));
+    }
+
+    // ----------- Get Today's Attendance for School -----------
+    @GetMapping("/{schoolId}/today-attendance")
+    public ResponseEntity<ApiResponse> getTodayAttendance(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getTodayAttendance(schoolId));
+    }
 }

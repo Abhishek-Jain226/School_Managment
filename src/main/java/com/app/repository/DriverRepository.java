@@ -1,6 +1,7 @@
 package com.app.repository;
 
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,7 @@ public interface DriverRepository extends JpaRepository<Driver, Integer> {
 	
 	Optional<Driver> findByUser(User user);
     boolean existsByUser(User user);
+    
+    // Find drivers by createdBy field
+    List<Driver> findByCreatedBy(String createdBy);
 }

@@ -124,8 +124,8 @@ public class ParentServiceImpl implements IParentService {
             "email", sp.getParentUser().getEmail(),
             "contactNumber", sp.getParentUser().getContactNumber(),
             "studentName", sp.getStudent().getFirstName() + " " + sp.getStudent().getLastName(),
-            "className", sp.getStudent().getClassName(),
-            "section", sp.getStudent().getSection()
+            "className", sp.getStudent().getClassMaster(),
+            "section", sp.getStudent().getSectionMaster()
         );
 
         return new ApiResponse(true, "Parent fetched successfully", resp);
@@ -148,8 +148,10 @@ public class ParentServiceImpl implements IParentService {
                 .studentId(student.getStudentId())
                 .firstName(student.getFirstName())
                 .lastName(student.getLastName())
-                .className(student.getClassName())
-                .section(student.getSection())
+                .classId(student.getClassMaster() != null ? student.getClassMaster().getClassId() : null)
+                .className(student.getClassMaster() != null ? student.getClassMaster().getClassName() : null)
+                .sectionId(student.getSectionMaster() != null ? student.getSectionMaster().getSectionId() : null)
+                .sectionName(student.getSectionMaster() != null ? student.getSectionMaster().getSectionName() : null)
                 .gender(student.getGender())
                 .motherName(student.getMotherName())
                 .fatherName(student.getFatherName())

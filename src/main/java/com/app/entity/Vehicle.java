@@ -51,6 +51,8 @@ public class Vehicle {
 	@Enumerated(EnumType.STRING)
 	private VehicleType vehicleType;
 	
+	@Column(name = "capacity")
+	private Integer capacity;
 	
 
 	@Column(name = "is_active", nullable = false)

@@ -34,13 +34,11 @@ public class StudentRequestDto {
 	@NotNull(message = "Gender is required")
 	private GenderType gender;
 
-	@NotBlank(message = "Class name is required")
-	@Size(max = 20, message = "Class name cannot exceed 20 characters")
-	private String className;
+	@NotNull(message = "Class ID is required")
+	private Integer classId;
 
-	@NotBlank(message = "Section is required")
-	@Size(max = 10, message = "Section cannot exceed 10 characters")
-	private String section;
+	@NotNull(message = "Section ID is required")
+	private Integer sectionId;
 
 	// Base64 or file reference
 	private String studentPhoto;
@@ -63,6 +61,7 @@ public class StudentRequestDto {
 	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Alternate contact number must be a valid 10-digit Indian mobile number")
 	private String alternateContactNumber;
 
+	@NotBlank(message = "Email is required")
 	@Email(message = "Invalid email format")
 	@Size(max = 150, message = "Email cannot exceed 150 characters")
 	private String email;

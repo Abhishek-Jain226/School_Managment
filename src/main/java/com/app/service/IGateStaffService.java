@@ -5,10 +5,22 @@
 //
 //public interface IGateStaffService {
 //
-//	ApiResponse getAssignedStudents(Integer schoolId);
+//	// Get gate staff dashboard data
+//	ApiResponse getGateStaffDashboard(Integer gateStaffId);
 //
-//	ApiResponse markGateEntry(GateEventRequestDto request);
+//	// Get assigned students for gate staff
+//	ApiResponse getAssignedStudents(Integer gateStaffId);
 //
-//	ApiResponse markGateExit(GateEventRequestDto request);
+//	// Get students by specific trip
+//	ApiResponse getStudentsByTrip(Integer gateStaffId, Integer tripId);
+//
+//	// Mark gate entry
+//	ApiResponse markGateEntry(Integer gateStaffId, GateEventRequestDto request);
+//
+//	// Mark gate exit
+//	ApiResponse markGateExit(Integer gateStaffId, GateEventRequestDto request);
+//
+//	// Get recent dispatch logs
+//	ApiResponse getRecentDispatchLogs(Integer gateStaffId);
 //
 //}

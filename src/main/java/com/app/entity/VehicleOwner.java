@@ -35,7 +35,7 @@ public class VehicleOwner {
     private Integer ownerId;
 
     @OneToOne
-    @JoinColumn(name = "u_id", unique = true, nullable = false)
+    @JoinColumn(name = "u_id", unique = true, nullable = true)
     private User user;
 
     @Column(length = 150)

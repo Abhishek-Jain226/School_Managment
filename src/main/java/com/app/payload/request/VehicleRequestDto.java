@@ -3,6 +3,7 @@ package com.app.payload.request;
 import com.app.Enum.VehicleType;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,7 @@ public class VehicleRequestDto {
 
 	private String vehiclePhoto; // optional (stored as Base64 / URL)
 	
+	@NotNull(message = "Vehicle type is required")
 	private VehicleType vehicleType;
 	
 

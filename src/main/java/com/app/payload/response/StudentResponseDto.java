@@ -23,8 +23,10 @@ public class StudentResponseDto {
 
 	private GenderType gender;
 
+	private Integer classId;
 	private String className;
-	private String section;
+	private Integer sectionId;
+	private String sectionName;
 
 	private String studentPhoto;
 

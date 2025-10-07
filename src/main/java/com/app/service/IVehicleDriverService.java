@@ -13,4 +13,6 @@ public interface IVehicleDriverService {
 
 	ApiResponse getDriversByVehicle(Integer vehicleId);
 
+	ApiResponse getDriverAssignmentsByOwner(Integer ownerId);
+
 }

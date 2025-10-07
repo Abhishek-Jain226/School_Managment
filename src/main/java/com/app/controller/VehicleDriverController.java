@@ -40,4 +40,10 @@ public class VehicleDriverController {
     public ResponseEntity<ApiResponse> getDriversByVehicle(@PathVariable Integer vehicleId) {
         return ResponseEntity.ok(vehicleDriverService.getDriversByVehicle(vehicleId));
     }
+
+    // ----------- Get Driver Assignments By Owner -----------
+    @GetMapping("/owner/{ownerId}/assignments")
+    public ResponseEntity<ApiResponse> getDriverAssignmentsByOwner(@PathVariable Integer ownerId) {
+        return ResponseEntity.ok(vehicleDriverService.getDriverAssignmentsByOwner(ownerId));
+    }
 }

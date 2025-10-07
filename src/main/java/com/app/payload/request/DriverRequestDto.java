@@ -1,7 +1,9 @@
 package com.app.payload.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,13 +26,15 @@ public class DriverRequestDto {
 	private String driverPhoto; // Optional (Base64 or URL)
 
 	@NotBlank(message = "Driver contact number is required")
-	@Size(min = 10, max = 15, message = "Driver contact number must be between 10 and 15 characters")
+	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Driver contact number must be a valid 10-digit Indian mobile number")
 	private String driverContactNumber;
 
 	@NotBlank(message = "Driver address is required")
 	@Size(max = 255, message = "Driver address must not exceed 255 characters")
 	private String driverAddress;
 	
+	@Email(message = "Invalid email format")
+	@Size(max = 150, message = "Email cannot exceed 150 characters")
 	private String email;
 
 	private Boolean isActive = true;

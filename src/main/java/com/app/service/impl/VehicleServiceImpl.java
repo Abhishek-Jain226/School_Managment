@@ -39,6 +39,8 @@ public class VehicleServiceImpl implements IVehicleService {
 
     @Override
     public ApiResponse createVehicle(VehicleRequestDto request) {
+        System.out.println("🔍 Creating vehicle with data: " + request);
+        
         // Duplicate registration check
         if (vehicleRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
             return new ApiResponse(false, "Vehicle with this registration number already exists", null);
@@ -54,7 +56,9 @@ public class VehicleServiceImpl implements IVehicleService {
                 .createdDate(LocalDateTime.now())
                 .build();
 
+        System.out.println("🔍 Vehicle entity created with createdBy: " + vehicle.getCreatedBy());
         Vehicle saved = vehicleRepository.save(vehicle);
+        System.out.println("🔍 Vehicle saved with ID: " + saved.getVehicleId());
 
         return new ApiResponse(true, "Vehicle created successfully", mapToResponse(saved));
     }
@@ -164,16 +168,7 @@ public class VehicleServiceImpl implements IVehicleService {
         return schoolVehicleRepository.countBySchool_SchoolId(schoolId);
     }
     
-//    @Override
-//    public ApiResponse getVehiclesByOwner(Integer ownerId) {
-//        List<Vehicle> vehicles = vehicleRepository.findByOwner_OwnerId(ownerId);
-//
-//        List<VehicleResponseDto> response = vehicles.stream()
-//                .map(this::mapToResponse)
-//                .collect(Collectors.toList());
-//
-//        return new ApiResponse(true, "Vehicles fetched successfully", response);
-//    }
+    // Removed commented code that used findByOwner_OwnerId
     @Override
     public ApiResponse getVehiclesByCreatedBy(String username) {
         List<Vehicle> vehicles = vehicleRepository.findByCreatedBy(username);

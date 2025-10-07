@@ -1,6 +1,7 @@
 package com.app.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -9,16 +10,20 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.app.entity.DispatchLog;
 import com.app.entity.Role;
 import com.app.entity.School;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.SchoolRequestDto;
 import com.app.payload.response.ApiResponse;
 import com.app.payload.response.SchoolResponseDto;
+import com.app.repository.DispatchLogRepository;
 import com.app.repository.RoleRepository;
 import com.app.repository.SchoolRepository;
+import com.app.repository.StudentRepository;
 import com.app.service.IPendingUserService;
 import com.app.service.ISchoolService;
+import com.app.Enum.EventType;
 
 @Service
 public class SchoolServiceImpl implements ISchoolService {
@@ -31,6 +36,12 @@ public class SchoolServiceImpl implements ISchoolService {
     
     @Autowired
     private RoleRepository roleRepository;
+    
+    @Autowired
+    private DispatchLogRepository dispatchLogRepository;
+    
+    @Autowired
+    private StudentRepository studentRepository;
 
     @Override
     public ApiResponse registerSchool(SchoolRequestDto request) {
@@ -210,5 +221,80 @@ public class SchoolServiceImpl implements ISchoolService {
                 .updatedBy(school.getUpdatedBy())
                 .updatedDate(school.getUpdatedDate())
                 .build();
+    }
+
+    @Override
+    public ApiResponse getVehiclesInTransit(Integer schoolId) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get all dispatch logs for this school from today
+            LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59).withNano(999999999);
+            
+            List<DispatchLog> todayLogs = dispatchLogRepository.findBySchoolAndCreatedDateBetween(
+                school, startOfDay, endOfDay);
+
+            // Count vehicles that are currently in transit
+            // A vehicle is "in transit" if it has started a trip (PICKUP_FROM_PARENT or PICKUP_FROM_SCHOOL)
+            // but hasn't completed it (no corresponding DROP_TO_SCHOOL or DROP_TO_PARENT)
+            long vehiclesInTransit = todayLogs.stream()
+                .filter(log -> log.getEventType() == EventType.PICKUP_FROM_PARENT || 
+                              log.getEventType() == EventType.PICKUP_FROM_SCHOOL)
+                .map(log -> log.getVehicle().getVehicleId())
+                .distinct()
+                .filter(vehicleId -> {
+                    // Check if this vehicle has completed its trip
+                    boolean hasCompletedTrip = todayLogs.stream()
+                        .anyMatch(log -> log.getVehicle().getVehicleId().equals(vehicleId) &&
+                                       (log.getEventType() == EventType.DROP_TO_SCHOOL ||
+                                        log.getEventType() == EventType.DROP_TO_PARENT));
+                    return !hasCompletedTrip;
+                })
+                .count();
+
+            return new ApiResponse(true, "Vehicles in transit count retrieved successfully", vehiclesInTransit);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error retrieving vehicles in transit: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getTodayAttendance(Integer schoolId) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get all dispatch logs for this school from today
+            LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59).withNano(999999999);
+            
+            List<DispatchLog> todayLogs = dispatchLogRepository.findBySchoolAndCreatedDateBetween(
+                school, startOfDay, endOfDay);
+
+            // Count students who were dropped to school today (attendance)
+            long studentsPresent = todayLogs.stream()
+                .filter(log -> log.getEventType() == EventType.DROP_TO_SCHOOL)
+                .map(log -> log.getStudent().getStudentId())
+                .distinct()
+                .count();
+
+            // Get total students for this school from student repository
+            long totalStudents = studentRepository.countBySchool_SchoolId(schoolId);
+
+            Map<String, Object> attendanceData = new HashMap<>();
+            attendanceData.put("studentsPresent", studentsPresent);
+            attendanceData.put("totalStudents", totalStudents);
+            attendanceData.put("attendanceRate", totalStudents > 0 ? (studentsPresent * 100.0 / totalStudents) : 0.0);
+
+            return new ApiResponse(true, "Today's attendance retrieved successfully", attendanceData);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error retrieving today's attendance: " + e.getMessage(), null);
+        }
     }
 }

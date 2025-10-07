@@ -58,6 +58,7 @@ public class Driver {
 	@Column(name = "driver_address", nullable = false, length = 255)
 	private String driverAddress;
 	
+	@Column(name = "email", length = 150)
 	private String email;
 
 	@Column(name = "is_active", nullable = false)

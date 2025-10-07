@@ -11,6 +11,8 @@ import com.app.entity.UserRole;
 public interface UserRoleRepository extends JpaRepository<UserRole, Integer> {
 
 	boolean existsByUserAndRole(User user, Role role);
+	
+	boolean existsByUserAndRole_RoleName(User user, String roleName);
 
 	  List<UserRole> findByUser(User user);
 

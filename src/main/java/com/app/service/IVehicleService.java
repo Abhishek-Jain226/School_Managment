@@ -20,7 +20,7 @@ public interface IVehicleService {
 	
 	long getVehicleCountBySchool(Integer schoolId);
 	
-	//ApiResponse getVehiclesByOwner(Integer ownerId);
+	// Removed commented method that used findByOwner_OwnerId
 	
 	ApiResponse getVehiclesByCreatedBy(String username);
 	

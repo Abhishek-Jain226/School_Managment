@@ -20,6 +20,7 @@ public interface VehicleDriverRepository extends JpaRepository<VehicleDriver, In
     @Query("SELECT COUNT(vd) > 0 FROM VehicleDriver vd WHERE vd.vehicle = :vehicle AND vd.driver = :driver AND vd.school = :school AND vd.isActive = true")
     boolean existsActiveAssignment(@Param("vehicle") Vehicle vehicle, @Param("driver") Driver driver, @Param("school") School school);
 	
+	List<VehicleDriver> findByDriverAndIsActiveTrue(Driver driver);
 	
 
 }

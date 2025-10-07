@@ -1,7 +1,10 @@
 package com.app.controller;
 
+import com.app.payload.request.BulkStudentImportRequestDto;
 import com.app.payload.request.StudentRequestDto;
 import com.app.payload.response.ApiResponse;
+import com.app.payload.response.BulkImportResultDto;
+import com.app.service.IBulkStudentImportService;
 import com.app.service.IStudentService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +17,9 @@ public class StudentController {
 
 	@Autowired
     private IStudentService studentService;
+    
+    @Autowired
+    private IBulkStudentImportService bulkStudentImportService;
 
     // ----------- Create Student -----------
     @PostMapping("/create")
@@ -59,5 +65,19 @@ public class StudentController {
     public ResponseEntity<ApiResponse> getStudentCount(@PathVariable Integer schoolId) {
         long count = studentService.getStudentCountBySchool(schoolId);
         return ResponseEntity.ok(new ApiResponse(true, "Student count fetched", count));
+    }
+    
+    // ----------- Bulk Import Students -----------
+    @PostMapping("/bulk-import")
+    public ResponseEntity<BulkImportResultDto> bulkImportStudents(@RequestBody BulkStudentImportRequestDto request) {
+        BulkImportResultDto result = bulkStudentImportService.importStudents(request);
+        return ResponseEntity.ok(result);
+    }
+    
+    // ----------- Validate Students for Bulk Import -----------
+    @PostMapping("/bulk-validate")
+    public ResponseEntity<BulkImportResultDto> validateStudentsForBulkImport(@RequestBody BulkStudentImportRequestDto request) {
+        BulkImportResultDto result = bulkStudentImportService.validateStudents(request);
+        return ResponseEntity.ok(result);
     }
 }

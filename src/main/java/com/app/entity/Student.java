@@ -52,13 +52,13 @@ public class Student {
 	@Enumerated(EnumType.STRING)
 	private GenderType gender;
 
-	@NotBlank(message = "Class is required")
-	@Column(name = "class_name", nullable = false, length = 20)
-	private String className; // renamed from "Class" to avoid keyword conflict
+	@ManyToOne
+	@JoinColumn(name = "class_id", nullable = false)
+	private ClassMaster classMaster;
 
-	@NotBlank(message = "Section is required")
-	@Column(name = "section", nullable = false, length = 10)
-	private String section;
+	@ManyToOne
+	@JoinColumn(name = "section_id", nullable = false)
+	private SectionMaster sectionMaster;
 
 	@Lob
 	@Column(name = "student_photo", columnDefinition = "LONGTEXT")
@@ -81,12 +81,13 @@ public class Student {
 	@Column(name = "primary_contact_number", nullable = false, length = 15)
 	private String primaryContactNumber;
 
-	@Size(min = 10, max = 15)
 	@Column(name = "alternate_contact_number", length = 15)
 	private String alternateContactNumber;
 
-	//@Email(message = "Email should be valid")
-	//@Column(name = "email", unique = true, length = 100)
+	@NotBlank(message = "Email is required")
+	@Email(message = "Email should be valid")
+	@Size(max = 150, message = "Email cannot exceed 150 characters")
+	@Column(name = "email", nullable = false, length = 150)
 	private String email;
 
 	@Column(name = "is_active", nullable = false)

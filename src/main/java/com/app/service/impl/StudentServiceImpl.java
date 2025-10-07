@@ -8,8 +8,10 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.app.entity.ClassMaster;
 import com.app.entity.Role;
 import com.app.entity.School;
+import com.app.entity.SectionMaster;
 import com.app.entity.Student;
 import com.app.entity.StudentParent;
 import com.app.entity.Trip;
@@ -19,8 +21,10 @@ import com.app.payload.request.PendingUserRequestDTO;
 import com.app.payload.request.StudentRequestDto;
 import com.app.payload.response.ApiResponse;
 import com.app.payload.response.StudentResponseDto;
+import com.app.repository.ClassMasterRepository;
 import com.app.repository.RoleRepository;
 import com.app.repository.SchoolRepository;
+import com.app.repository.SectionMasterRepository;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.StudentRepository;
 import com.app.repository.TripRepository;
@@ -51,6 +55,12 @@ public class StudentServiceImpl implements IStudentService {
     
     @Autowired
     private StudentParentRepository studentParentRepository;
+    
+    @Autowired
+    private ClassMasterRepository classMasterRepository;
+    
+    @Autowired
+    private SectionMasterRepository sectionMasterRepository;
 
     @Override
     public ApiResponse createStudent(StudentRequestDto request) {
@@ -58,7 +68,15 @@ public class StudentServiceImpl implements IStudentService {
         School school = schoolRepository.findById(request.getSchoolId())
                 .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
 
-        // 2. Check for duplicate email
+        // 2. Validate class master
+        ClassMaster classMaster = classMasterRepository.findById(request.getClassId())
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found with ID: " + request.getClassId()));
+
+        // 3. Validate section master
+        SectionMaster sectionMaster = sectionMasterRepository.findById(request.getSectionId())
+                .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + request.getSectionId()));
+
+        // 4. Check for duplicate email
         if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
             if (studentRepository.existsByEmail(request.getEmail())) {
                 return new ApiResponse(false, "Student with this email already exists", null);
@@ -83,8 +101,8 @@ public class StudentServiceImpl implements IStudentService {
                 .middleName(request.getMiddleName())
                 .lastName(request.getLastName())
                 .gender(request.getGender())
-                .className(request.getClassName())
-                .section(request.getSection())
+                .classMaster(classMaster)
+                .sectionMaster(sectionMaster)
                 .studentPhoto(request.getStudentPhoto())
                 .school(school)
                 .motherName(request.getMotherName())
@@ -137,6 +155,20 @@ public class StudentServiceImpl implements IStudentService {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
 
+        // Validate class master if provided
+        ClassMaster classMaster = null;
+        if (request.getClassId() != null) {
+            classMaster = classMasterRepository.findById(request.getClassId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Class not found with ID: " + request.getClassId()));
+        }
+
+        // Validate section master if provided
+        SectionMaster sectionMaster = null;
+        if (request.getSectionId() != null) {
+            sectionMaster = sectionMasterRepository.findById(request.getSectionId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + request.getSectionId()));
+        }
+
         // duplicate checks (email, phone)
         if (request.getEmail() != null && !student.getEmail().equals(request.getEmail()) &&
                 studentRepository.existsByEmail(request.getEmail())) {
@@ -161,8 +193,12 @@ public class StudentServiceImpl implements IStudentService {
         student.setMiddleName(request.getMiddleName());
         student.setLastName(request.getLastName());
         student.setGender(request.getGender());
-        student.setClassName(request.getClassName());
-        student.setSection(request.getSection());
+        if (classMaster != null) {
+            student.setClassMaster(classMaster);
+        }
+        if (sectionMaster != null) {
+            student.setSectionMaster(sectionMaster);
+        }
         student.setStudentPhoto(request.getStudentPhoto());
         student.setMotherName(request.getMotherName());
         student.setFatherName(request.getFatherName());
@@ -228,8 +264,10 @@ public class StudentServiceImpl implements IStudentService {
                 .middleName(student.getMiddleName())
                 .lastName(student.getLastName())
                 .gender(student.getGender())
-                .className(student.getClassName())
-                .section(student.getSection())
+                .classId(student.getClassMaster() != null ? student.getClassMaster().getClassId() : null)
+                .className(student.getClassMaster() != null ? student.getClassMaster().getClassName() : null)
+                .sectionId(student.getSectionMaster() != null ? student.getSectionMaster().getSectionId() : null)
+                .sectionName(student.getSectionMaster() != null ? student.getSectionMaster().getSectionName() : null)
                 .studentPhoto(student.getStudentPhoto())
                 .schoolId(student.getSchool() != null ? student.getSchool().getSchoolId() : null)
                 .schoolName(student.getSchool() != null ? student.getSchool().getSchoolName() : null)

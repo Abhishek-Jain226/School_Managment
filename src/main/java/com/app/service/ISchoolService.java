@@ -19,4 +19,8 @@ public interface ISchoolService {
 
 	ApiResponse getAllSchools();
 
+	ApiResponse getVehiclesInTransit(Integer schoolId);
+
+	ApiResponse getTodayAttendance(Integer schoolId);
+
 }

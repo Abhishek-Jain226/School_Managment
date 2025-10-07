@@ -36,10 +36,10 @@ public class NotificationServiceImpl implements INotificationService {
 
         Notification notification = Notification.builder()
                 .dispatchLog(dispatchLog)
-                .notificationType(request.getNotificationType())
+                .notificationType(com.app.Enum.NotificationType.valueOf(request.getNotificationType()))
                 .isSent(false) // initially pending
                 .errorMsg(null)
-                .createdBy(request.getCreatedBy())
+                .createdBy(request.getCreatedBy() != null ? request.getCreatedBy() : "System")
                 .createdDate(LocalDateTime.now())
                 .build();
 
