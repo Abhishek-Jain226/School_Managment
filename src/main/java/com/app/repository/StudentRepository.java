@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.app.entity.Student;
+import com.app.entity.School;
 
 public interface StudentRepository extends JpaRepository<Student, Integer> {
 
@@ -24,6 +25,6 @@ public interface StudentRepository extends JpaRepository<Student, Integer> {
     
     long countBySchool_SchoolId(Integer schoolId);
     
-   
+    List<Student> findBySchool(School school);
 
 }

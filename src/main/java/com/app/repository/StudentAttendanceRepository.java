@@ -36,5 +36,7 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
     @Query("SELECT COUNT(sa) FROM StudentAttendance sa WHERE sa.student = :student AND sa.attendanceDate BETWEEN :startDate AND :endDate AND sa.isLate = true")
     Long countLateDaysByStudentAndDateRange(@Param("student") Student student, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
-    // Find today's attendance for a student (duplicate method removed)
+    // Find all attendance records for a student
+    List<StudentAttendance> findByStudent(Student student);
+
 }

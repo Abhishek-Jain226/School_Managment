@@ -1,0 +1,3 @@
+studentId,studentName,className,sectionName,presentDays,absentDays,totalDays,attendancePercentage
+1,Test Student,5A,A,20,2,22,90.9
+2,Another Student,5B,B,18,4,22,81.8

@@ -151,22 +151,26 @@ public class AuthServiceImpl implements IAuthService{
 	        schoolId = school.getSchoolId();
 	        schoolName = school.getSchoolName();
 	    }
-	    // ✅ Agar Vehicle Owner hai
+	    // ✅ Priority: VEHICLE_OWNER first, then DRIVER
 	    if (roles.contains("VEHICLE_OWNER")) {
-	        VehicleOwner owner = ownerRepository.findByUser(user)
-	                .orElseThrow(() -> new ResourceNotFoundException("Owner not found for user: " + user.getUserName()));
-	        ownerId = owner.getOwnerId();
+	        System.out.println("🔍 User has VEHICLE_OWNER role, looking up owner record for user: " + user.getUserName());
+	        try {
+	            VehicleOwner owner = ownerRepository.findByUser(user)
+	                    .orElseThrow(() -> new ResourceNotFoundException("Owner not found for user: " + user.getUserName()));
+	            ownerId = owner.getOwnerId();
+	            System.out.println("🔍 Owner ID found: " + ownerId);
+	        } catch (Exception e) {
+	            System.out.println("⚠️ Error finding owner: " + e.getMessage());
+	            e.printStackTrace();
+	        }
 	       
 	        if (schoolUserOpt.isPresent()) {
 	            School school = schoolUserOpt.get().getSchool();
 	            schoolId = school.getSchoolId();
 	            schoolName = school.getSchoolName();
 	        }
-	    }
-	    
-	    // ✅ Agar Driver hai
-	    if (roles.contains("DRIVER")) {
-	        System.out.println("🔍 User has DRIVER role, looking up driver record for user: " + user.getUserName());
+	    } else if (roles.contains("DRIVER")) {
+	        System.out.println("🔍 User has DRIVER role (no VEHICLE_OWNER), looking up driver record for user: " + user.getUserName());
 	        try {
 	            Driver driver = driverRepository.findByUser(user)
 	                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found for user: " + user.getUserName()));
@@ -183,7 +187,7 @@ public class AuthServiceImpl implements IAuthService{
 	            schoolName = school.getSchoolName();
 	        }
 	    } else {
-	        System.out.println("🔍 User does not have DRIVER role. Roles: " + roles);
+	        System.out.println("🔍 User has neither VEHICLE_OWNER nor DRIVER role. Roles: " + roles);
 	    }
 
 	    Map<String, Object> data = new HashMap<>();

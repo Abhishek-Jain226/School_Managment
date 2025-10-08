@@ -41,4 +41,10 @@ public class TripStudentController {
     public ResponseEntity<ApiResponse> getStudentsByTrip(@PathVariable Integer tripId) {
         return ResponseEntity.ok(tripStudentService.getStudentsByTrip(tripId));
     }
+
+    // ----------- Get All Trip-Student Assignments by School -----------
+    @GetMapping("/school/{schoolId}")
+    public ResponseEntity<ApiResponse> getAllAssignmentsBySchool(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(tripStudentService.getAllAssignmentsBySchool(schoolId));
+    }
 }

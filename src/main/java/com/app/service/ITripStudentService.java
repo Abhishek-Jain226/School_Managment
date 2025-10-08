@@ -13,4 +13,6 @@ public interface ITripStudentService {
 
 	ApiResponse getStudentsByTrip(Integer tripId);
 
+	ApiResponse getAllAssignmentsBySchool(Integer schoolId);
+
 }
