@@ -64,4 +64,21 @@ public class User {
 	protected void onUpdate() {
 		updatedDate = LocalDateTime.now();
 	}
+	
+	// Explicit getters for critical methods (Lombok fallback)
+	public Integer getUId() {
+		return uId;
+	}
+	
+	public String getUserName() {
+		return userName;
+	}
+	
+	public String getPassword() {
+		return password;
+	}
+	
+	public String getEmail() {
+		return email;
+	}
 }

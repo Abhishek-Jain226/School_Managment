@@ -90,5 +90,13 @@ public class School {
 	protected void onUpdate() {
 		updatedDate = LocalDateTime.now();
 	}
-
+	
+	// Explicit getters for critical methods (Lombok fallback)
+	public Integer getSchoolId() {
+		return schoolId;
+	}
+	
+	public String getSchoolName() {
+		return schoolName;
+	}
 }

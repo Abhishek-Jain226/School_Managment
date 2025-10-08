@@ -24,6 +24,8 @@ public class VehicleResponseDto {
 	private String vehiclePhoto;
 	
 	private VehicleType vehicleType;
+	
+	private Integer capacity;
 
 	private Boolean isActive;
 

@@ -29,7 +29,9 @@ public class VehicleRequestDto {
 	@NotNull(message = "Vehicle type is required")
 	private VehicleType vehicleType;
 	
-
+	@NotNull(message = "Vehicle capacity is required")
+	private Integer capacity;
+	
 	private Boolean isActive = true;
 
 	@NotBlank(message = "Created by is required")
@@ -39,6 +41,7 @@ public class VehicleRequestDto {
 	@Size(max = 50, message = "Updated by cannot exceed 50 characters")
 	private String updatedBy;
 
+	
 	
 
 }

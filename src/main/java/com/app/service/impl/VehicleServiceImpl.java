@@ -40,6 +40,7 @@ public class VehicleServiceImpl implements IVehicleService {
     @Override
     public ApiResponse createVehicle(VehicleRequestDto request) {
         System.out.println("🔍 Creating vehicle with data: " + request);
+        System.out.println("🔍 Vehicle capacity from request: " + request.getCapacity());
         
         // Duplicate registration check
         if (vehicleRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
@@ -51,14 +52,17 @@ public class VehicleServiceImpl implements IVehicleService {
                 .registrationNumber(request.getRegistrationNumber())
                 .vehiclePhoto(request.getVehiclePhoto())
                 .vehicleType(request.getVehicleType())
+                .capacity(request.getCapacity())
                 .isActive(request.getIsActive())
                 .createdBy(request.getCreatedBy())
                 .createdDate(LocalDateTime.now())
                 .build();
 
         System.out.println("🔍 Vehicle entity created with createdBy: " + vehicle.getCreatedBy());
+        System.out.println("🔍 Vehicle entity capacity: " + vehicle.getCapacity());
         Vehicle saved = vehicleRepository.save(vehicle);
         System.out.println("🔍 Vehicle saved with ID: " + saved.getVehicleId());
+        System.out.println("🔍 Saved vehicle capacity: " + saved.getCapacity());
 
         return new ApiResponse(true, "Vehicle created successfully", mapToResponse(saved));
     }
@@ -78,6 +82,7 @@ public class VehicleServiceImpl implements IVehicleService {
         vehicle.setRegistrationNumber(request.getRegistrationNumber());
         vehicle.setVehiclePhoto(request.getVehiclePhoto());
         vehicle.setVehicleType(request.getVehicleType());
+        vehicle.setCapacity(request.getCapacity());
         vehicle.setIsActive(request.getIsActive());
         vehicle.setUpdatedBy(request.getUpdatedBy());
         vehicle.setUpdatedDate(LocalDateTime.now());
@@ -156,6 +161,7 @@ public class VehicleServiceImpl implements IVehicleService {
                 .registrationNumber(vehicle.getRegistrationNumber())
                 .vehiclePhoto(vehicle.getVehiclePhoto())
                 .vehicleType(vehicle.getVehicleType())
+                .capacity(vehicle.getCapacity())
                 .isActive(vehicle.getIsActive())
                 .createdBy(vehicle.getCreatedBy())
                 .createdDate(vehicle.getCreatedDate())

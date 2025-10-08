@@ -78,5 +78,38 @@ public class StudentRequestDto {
 
 	@Size(max = 50, message = "Updated by must not exceed 50 characters")
 	private String updatedBy;
+	
+	// Explicit getters for critical methods (Lombok fallback)
+	public String getFirstName() {
+		return firstName;
+	}
+	
+	public String getLastName() {
+		return lastName;
+	}
+	
+	public String getFatherName() {
+		return fatherName;
+	}
+	
+	public String getPrimaryContactNumber() {
+		return primaryContactNumber;
+	}
+	
+	public String getAlternateContactNumber() {
+		return alternateContactNumber;
+	}
+	
+	public String getEmail() {
+		return email;
+	}
+	
+	public Integer getClassId() {
+		return classId;
+	}
+	
+	public Integer getSectionId() {
+		return sectionId;
+	}
 
 }

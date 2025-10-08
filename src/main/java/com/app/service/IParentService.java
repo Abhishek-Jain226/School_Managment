@@ -20,4 +20,15 @@ public interface IParentService {
 	
 	ApiResponse getStudentByParentUserId(Integer userId);
 
+	// Parent Dashboard Methods
+	ApiResponse getParentDashboard(Integer userId);
+	
+	ApiResponse getParentNotifications(Integer userId);
+	
+	ApiResponse getAttendanceHistory(Integer userId, String fromDate, String toDate);
+	
+	ApiResponse getMonthlyReport(Integer userId, Integer year, Integer month);
+	
+	ApiResponse updateParentProfile(Integer userId, UserRequestDto request);
+
 }

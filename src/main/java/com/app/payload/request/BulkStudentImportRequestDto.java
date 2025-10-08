@@ -31,4 +31,25 @@ public class BulkStudentImportRequestDto {
     private Boolean sendActivationEmails = true; // Default to true
     
     private String emailGenerationStrategy = "USE_PROVIDED"; // USE_PROVIDED (mandatory emails)
+    
+    // Explicit getters for critical methods (Lombok fallback)
+    public List<StudentRequestDto> getStudents() {
+        return students;
+    }
+    
+    public Integer getSchoolId() {
+        return schoolId;
+    }
+    
+    public String getCreatedBy() {
+        return createdBy;
+    }
+    
+    public String getSchoolDomain() {
+        return schoolDomain;
+    }
+    
+    public Boolean getSendActivationEmails() {
+        return sendActivationEmails;
+    }
 }

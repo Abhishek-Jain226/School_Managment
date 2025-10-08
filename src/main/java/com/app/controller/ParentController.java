@@ -59,4 +59,42 @@ public class ParentController {
     public ResponseEntity<ApiResponse> getStudentByParentUserId(@PathVariable Integer userId) {
         return ResponseEntity.ok(parentService.getStudentByParentUserId(userId));
     }
+
+    // ----------- Get Parent Dashboard -----------
+    @GetMapping("/{userId}/dashboard")
+    public ResponseEntity<ApiResponse> getParentDashboard(@PathVariable Integer userId) {
+        return ResponseEntity.ok(parentService.getParentDashboard(userId));
+    }
+
+    // ----------- Get Parent Notifications -----------
+    @GetMapping("/{userId}/notifications")
+    public ResponseEntity<ApiResponse> getParentNotifications(@PathVariable Integer userId) {
+        return ResponseEntity.ok(parentService.getParentNotifications(userId));
+    }
+
+    // ----------- Get Attendance History -----------
+    @GetMapping("/{userId}/attendance-history")
+    public ResponseEntity<ApiResponse> getAttendanceHistory(
+            @PathVariable Integer userId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        return ResponseEntity.ok(parentService.getAttendanceHistory(userId, fromDate, toDate));
+    }
+
+    // ----------- Get Monthly Report -----------
+    @GetMapping("/{userId}/monthly-report")
+    public ResponseEntity<ApiResponse> getMonthlyReport(
+            @PathVariable Integer userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        return ResponseEntity.ok(parentService.getMonthlyReport(userId, year, month));
+    }
+
+    // ----------- Update Parent Profile -----------
+    @PutMapping("/{userId}/profile")
+    public ResponseEntity<ApiResponse> updateParentProfile(
+            @PathVariable Integer userId,
+            @RequestBody UserRequestDto request) {
+        return ResponseEntity.ok(parentService.updateParentProfile(userId, request));
+    }
 }

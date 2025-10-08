@@ -9,5 +9,8 @@ import com.app.entity.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
 	List<Notification> findByDispatchLog(DispatchLog dispatchLog);
+	
+	// Optimized query for parent notifications
+	List<Notification> findByDispatchLog_Student_StudentIdOrderByCreatedDateDesc(Integer studentId);
 
 }

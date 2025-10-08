@@ -114,4 +114,17 @@ public class Student {
 	protected void onUpdate() {
 		updatedDate = LocalDateTime.now();
 	}
+	
+	// Explicit getters for critical methods (Lombok fallback)
+	public Integer getStudentId() {
+		return studentId;
+	}
+	
+	public String getFirstName() {
+		return firstName;
+	}
+	
+	public String getLastName() {
+		return lastName;
+	}
 }

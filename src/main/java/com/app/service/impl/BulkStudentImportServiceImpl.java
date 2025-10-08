@@ -8,6 +8,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -45,6 +47,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Transactional
 public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
+
+    private static final Logger log = LoggerFactory.getLogger(BulkStudentImportServiceImpl.class);
 
     @Autowired
     private StudentRepository studentRepository;

@@ -67,6 +67,9 @@ public class DriverServiceImpl implements IDriverService {
     
     @Autowired
     private DispatchLogRepository dispatchLogRepository;
+    
+    @Autowired
+    private com.app.repository.VehicleRepository vehicleRepository;
 
     @Override
     public ApiResponse createDriver(DriverRequestDto request) {
@@ -257,6 +260,9 @@ public class DriverServiceImpl implements IDriverService {
                              " assigned to School " + vehicleDriver.getSchool().getSchoolName());
 
             Vehicle vehicle = vehicleDriver.getVehicle();
+            
+            // Log current vehicle capacity from database
+            System.out.println("🔍 Vehicle capacity from database: " + vehicle.getCapacity());
             
             // Get today's trips
             List<Trip> todayTrips = tripRepository.findByDriverAndDate(driver, LocalDate.now());
