@@ -14,6 +14,7 @@ public interface SchoolUserRepository extends JpaRepository<SchoolUser, Integer>
 	
 	boolean existsBySchoolAndUserAndRole(School school, User user, Role role);
 	List<SchoolUser> findBySchool(School school);
+	List<SchoolUser> findBySchool_SchoolId(Integer schoolId);
 	List<SchoolUser> findAllByUser(User user);
 	
 	long countBySchool(School school);

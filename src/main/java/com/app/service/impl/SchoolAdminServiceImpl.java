@@ -2,7 +2,9 @@ package com.app.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -215,5 +217,193 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
 
         // 6) return created user summary
         return new ApiResponse(true, "Staff created and assigned successfully", mapToResponse(saved));
-}
+    }
+
+    @Override
+    public ApiResponse getAllStaffBySchool(Integer schoolId) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get all staff for this school (only TEACHER and GATE_STAFF, exclude PARENT)
+            List<Map<String, Object>> staffList = schoolUserRepository.findBySchool_SchoolId(schoolId)
+                    .stream()
+                    .filter(schoolUser -> {
+                        String roleName = schoolUser.getRole().getRoleName();
+                        return "TEACHER".equals(roleName) || "GATE_STAFF".equals(roleName);
+                    })
+                    .map(this::mapToStaffResponse)
+                    .collect(Collectors.toList());
+            
+            // Debug: Print all staff data (only TEACHER and GATE_STAFF)
+            System.out.println("=== STAFF DATA DEBUG (TEACHER & GATE_STAFF ONLY) ===");
+            for (Map<String, Object> staff : staffList) {
+                System.out.println("Name: " + staff.get("name") + ", Role: " + staff.get("role") + ", Email: " + staff.get("email"));
+            }
+            System.out.println("=== END DEBUG ===");
+
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("staffList", staffList);
+            responseData.put("totalCount", staffList.size());
+            responseData.put("activeCount", staffList.stream().mapToInt(s -> (Boolean) s.get("isActive") ? 1 : 0).sum());
+
+            return new ApiResponse(true, "Staff list retrieved successfully", responseData);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error retrieving staff list: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse updateStaffStatus(Integer staffId, Boolean isActive, String updatedBy) {
+        try {
+            SchoolUser schoolUser = schoolUserRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            schoolUser.setIsActive(isActive);
+            schoolUser.setUpdatedBy(updatedBy);
+            schoolUser.setUpdatedDate(LocalDateTime.now());
+            
+            schoolUserRepository.save(schoolUser);
+
+            return new ApiResponse(true, 
+                "Staff " + (isActive ? "activated" : "deactivated") + " successfully", 
+                mapToStaffResponse(schoolUser));
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error updating staff status: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse deleteStaff(Integer staffId, String updatedBy) {
+        try {
+            SchoolUser schoolUser = schoolUserRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            // Soft delete - mark as inactive instead of hard delete
+            schoolUser.setIsActive(false);
+            schoolUser.setUpdatedBy(updatedBy);
+            schoolUser.setUpdatedDate(LocalDateTime.now());
+            
+            schoolUserRepository.save(schoolUser);
+
+            return new ApiResponse(true, "Staff deleted successfully", null);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error deleting staff: " + e.getMessage(), null);
+        }
+    }
+
+    private Map<String, Object> mapToStaffResponse(SchoolUser schoolUser) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("staffId", schoolUser.getSchoolUserId());
+        response.put("userId", schoolUser.getUser().getUId());
+        response.put("name", schoolUser.getUser().getUserName()); // Using userName as name since fullName doesn't exist
+        response.put("userName", schoolUser.getUser().getUserName());
+        response.put("email", schoolUser.getUser().getEmail());
+        response.put("contactNo", schoolUser.getUser().getContactNumber());
+        response.put("role", schoolUser.getRole().getRoleName());
+        response.put("isActive", schoolUser.getIsActive());
+        response.put("joinDate", schoolUser.getCreatedDate());
+        response.put("schoolId", schoolUser.getSchool().getSchoolId());
+        response.put("schoolName", schoolUser.getSchool().getSchoolName());
+        return response;
+    }
+
+    @Override
+    public ApiResponse getStaffByName(Integer schoolId, String name) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get staff by name for this school
+            List<SchoolUser> staffList = schoolUserRepository.findBySchool_SchoolId(schoolId)
+                    .stream()
+                    .filter(schoolUser -> schoolUser.getUser().getUserName().toLowerCase().contains(name.toLowerCase()))
+                    .collect(Collectors.toList());
+            
+            List<Map<String, Object>> responseList = staffList.stream()
+                    .map(this::mapToStaffResponse)
+                    .collect(Collectors.toList());
+            
+            // Debug: Print detailed info
+            System.out.println("=== DEBUG STAFF BY NAME: " + name + " ===");
+            for (SchoolUser schoolUser : staffList) {
+                System.out.println("User ID: " + schoolUser.getUser().getUId());
+                System.out.println("User Name: " + schoolUser.getUser().getUserName());
+                System.out.println("Role ID: " + schoolUser.getRole().getRoleId());
+                System.out.println("Role Name: " + schoolUser.getRole().getRoleName());
+                System.out.println("School ID: " + schoolUser.getSchool().getSchoolId());
+                System.out.println("---");
+            }
+            System.out.println("=== END DEBUG ===");
+
+            return new ApiResponse(true, "Staff found by name", responseList);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error finding staff by name: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse updateStaffRole(Integer staffId, Integer newRoleId, String updatedBy) {
+        try {
+            // Find the staff record
+            SchoolUser schoolUser = schoolUserRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            // Find the new role
+            Role newRole = roleRepository.findById(newRoleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Role not found with ID: " + newRoleId));
+
+            // Update the role
+            schoolUser.setRole(newRole);
+            schoolUser.setUpdatedBy(updatedBy);
+            schoolUser.setUpdatedDate(LocalDateTime.now());
+            
+            schoolUserRepository.save(schoolUser);
+
+            return new ApiResponse(true, 
+                "Staff role updated from " + schoolUser.getRole().getRoleName() + " to " + newRole.getRoleName() + " successfully", 
+                mapToStaffResponse(schoolUser));
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error updating staff role: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getAllUsersBySchool(Integer schoolId) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get ALL users for this school (including PARENT)
+            List<Map<String, Object>> allUsersList = schoolUserRepository.findBySchool_SchoolId(schoolId)
+                    .stream()
+                    .map(this::mapToStaffResponse)
+                    .collect(Collectors.toList());
+            
+            // Debug: Print all users data (including PARENT)
+            System.out.println("=== ALL USERS DATA DEBUG (INCLUDING PARENT) ===");
+            for (Map<String, Object> user : allUsersList) {
+                System.out.println("Name: " + user.get("name") + ", Role: " + user.get("role") + ", Email: " + user.get("email"));
+            }
+            System.out.println("=== END DEBUG ===");
+
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("allUsersList", allUsersList);
+            responseData.put("totalCount", allUsersList.size());
+            responseData.put("activeCount", allUsersList.stream().mapToInt(s -> (Boolean) s.get("isActive") ? 1 : 0).sum());
+
+            return new ApiResponse(true, "All users fetched successfully", responseData);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error fetching all users: " + e.getMessage(), null);
+        }
+    }
 }

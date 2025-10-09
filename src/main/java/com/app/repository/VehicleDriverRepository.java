@@ -22,5 +22,8 @@ public interface VehicleDriverRepository extends JpaRepository<VehicleDriver, In
 	
 	List<VehicleDriver> findByDriverAndIsActiveTrue(Driver driver);
 	
+	// Find VehicleDriver assignments by owner through vehicle relationship
+	@Query("SELECT vd FROM VehicleDriver vd JOIN vd.vehicle v JOIN SchoolVehicle sv ON v.vehicleId = sv.vehicle.vehicleId WHERE sv.owner.ownerId = :ownerId")
+	List<VehicleDriver> findByOwnerId(@Param("ownerId") Integer ownerId);
 
 }

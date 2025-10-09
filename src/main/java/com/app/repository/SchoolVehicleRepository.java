@@ -20,5 +20,11 @@ public interface SchoolVehicleRepository extends JpaRepository<SchoolVehicle, In
 	List<SchoolVehicle> findByOwner_OwnerId(Integer ownerId);
 
     boolean existsBySchoolAndVehicle(School school, Vehicle vehicle);
+    
+    // Check if mapping exists by school and vehicle IDs
+    boolean existsBySchool_SchoolIdAndVehicle_VehicleId(Integer schoolId, Integer vehicleId);
+    
+    // Find mapping by school and vehicle IDs
+    java.util.Optional<SchoolVehicle> findBySchool_SchoolIdAndVehicle_VehicleId(Integer schoolId, Integer vehicleId);
 
 }

@@ -25,7 +25,7 @@ public class SecurityConfig {
 		http.csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**", "/activation","/api/**")
+                                .requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**", "/activation","/api/**", "/ws/**", "/app/**")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

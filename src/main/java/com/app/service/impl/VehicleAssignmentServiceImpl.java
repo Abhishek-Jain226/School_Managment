@@ -21,6 +21,8 @@ import com.app.repository.VehicleAssignmentRequestRepository;
 import com.app.repository.VehicleOwnerRepository;
 import com.app.repository.VehicleRepository;
 import com.app.service.IVehicleAssignmentService;
+import com.app.service.IWebSocketNotificationService;
+import com.app.payload.response.WebSocketNotificationDto;
 
 import jakarta.transaction.Transactional;
 
@@ -38,6 +40,8 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	private VehicleOwnerRepository ownerRepo;
 	@Autowired
 	private SchoolVehicleRepository schoolVehicleRepo;
+	@Autowired
+	private IWebSocketNotificationService webSocketNotificationService;
 
 	 @Override
 	    public ApiResponse createRequest(VehicleAssignmentRequestDto dto) {
@@ -63,8 +67,24 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	                .status(RequestStatus.PENDING)
 	                .build();
 
-	        requestRepo.save(r);
-	        return new ApiResponse(true, "Assignment request created", r);
+	        VehicleAssignmentRequest savedRequest = requestRepo.save(r);
+	        
+	        // Send WebSocket notification to School Admin
+	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+	                .type("VEHICLE_ASSIGNMENT_REQUEST")
+	                .title("New Vehicle Assignment Request")
+	                .message("New vehicle assignment request from ${owner.getOwnerName()} for vehicle ${vehicle.getVehicleNumber()}")
+	                .priority("HIGH")
+	                .schoolId(school.getSchoolId())
+	                .vehicleId(vehicle.getVehicleId())
+	                .action("CREATE")
+	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+	                .targetRole("SCHOOL_ADMIN")
+	                .build();
+	        
+	        webSocketNotificationService.sendNotificationToSchool(school.getSchoolId(), notification);
+	        
+	        return new ApiResponse(true, "Assignment request created", savedRequest);
 	    }
 
 	    @Override
@@ -82,18 +102,56 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	        req.setUpdatedDate(LocalDateTime.now());
 	        requestRepo.save(req);
 
-	        // create mapping in school_vehicles
-	        SchoolVehicle mapping = SchoolVehicle.builder()
-	                .school(req.getSchool())
-	                .vehicle(req.getVehicle())
-	                .owner(req.getOwner())
-	                .isActive(true)
-	                .createdBy(updatedBy)
-	                .createdDate(LocalDateTime.now())
-	                .build();
-	        schoolVehicleRepo.save(mapping);
+        // create mapping in school_vehicles (check for duplicates first)
+        boolean mappingExists = schoolVehicleRepo.existsBySchool_SchoolIdAndVehicle_VehicleId(
+                req.getSchool().getSchoolId(), 
+                req.getVehicle().getVehicleId()
+        );
+        
+        if (!mappingExists) {
+            SchoolVehicle mapping = SchoolVehicle.builder()
+                    .school(req.getSchool())
+                    .vehicle(req.getVehicle())
+                    .owner(req.getOwner())
+                    .isActive(true)
+                    .createdBy(updatedBy)
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            schoolVehicleRepo.save(mapping);
+        } else {
+            // Update existing mapping to active if it was inactive
+            SchoolVehicle existingMapping = schoolVehicleRepo.findBySchool_SchoolIdAndVehicle_VehicleId(
+                    req.getSchool().getSchoolId(), 
+                    req.getVehicle().getVehicleId()
+            ).orElse(null);
+            
+            if (existingMapping != null && !existingMapping.getIsActive()) {
+                existingMapping.setIsActive(true);
+                existingMapping.setUpdatedBy(updatedBy);
+                existingMapping.setUpdatedDate(LocalDateTime.now());
+                schoolVehicleRepo.save(existingMapping);
+            }
+        }
 
-	        return new ApiResponse(true, "Request approved and vehicle assigned to school", mapping);
+	        // Send WebSocket notification to Vehicle Owner
+	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+	                .type("VEHICLE_ASSIGNMENT_APPROVED")
+	                .title("Vehicle Assignment Approved")
+	                .message("Your vehicle ${req.getVehicle().getVehicleNumber()} has been approved for school ${req.getSchool().getSchoolName()}")
+	                .priority("MEDIUM")
+	                .vehicleId(req.getVehicle().getVehicleId())
+	                .schoolId(req.getSchool().getSchoolId())
+	                .action("APPROVE")
+	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+	                .targetRole("VEHICLE_OWNER")
+	                .build();
+	        
+	        webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
+
+	        String message = mappingExists ? 
+            "Request approved and existing vehicle assignment reactivated" : 
+            "Request approved and vehicle assigned to school";
+        return new ApiResponse(true, message, null);
 	    }
 
 	    @Override
@@ -105,6 +163,21 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	        req.setUpdatedBy(updatedBy);
 	        req.setUpdatedDate(LocalDateTime.now());
 	        requestRepo.save(req);
+
+	        // Send WebSocket notification to Vehicle Owner
+	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+	                .type("VEHICLE_ASSIGNMENT_REJECTED")
+	                .title("Vehicle Assignment Rejected")
+	                .message("Your vehicle ${req.getVehicle().getVehicleNumber()} assignment request for school ${req.getSchool().getSchoolName()} has been rejected")
+	                .priority("MEDIUM")
+	                .vehicleId(req.getVehicle().getVehicleId())
+	                .schoolId(req.getSchool().getSchoolId())
+	                .action("REJECT")
+	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+	                .targetRole("VEHICLE_OWNER")
+	                .build();
+	        
+	        webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
 
 	        return new ApiResponse(true, "Request rejected", req);
 	    }

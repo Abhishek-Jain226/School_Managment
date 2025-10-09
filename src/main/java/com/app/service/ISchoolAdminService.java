@@ -18,5 +18,17 @@ public interface ISchoolAdminService {
 	ApiResponse getDashboardStats(Integer schoolId);
 	
 	ApiResponse createStaffAndAssign(StaffCreateRequestDto request);
+	
+	ApiResponse getAllStaffBySchool(Integer schoolId);
+	
+	ApiResponse updateStaffStatus(Integer staffId, Boolean isActive, String updatedBy);
+	
+	ApiResponse deleteStaff(Integer staffId, String updatedBy);
+	
+	ApiResponse getStaffByName(Integer schoolId, String name);
+	
+	ApiResponse updateStaffRole(Integer staffId, Integer newRoleId, String updatedBy);
+	
+	ApiResponse getAllUsersBySchool(Integer schoolId);
 
 }

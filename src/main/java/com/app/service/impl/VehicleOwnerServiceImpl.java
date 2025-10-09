@@ -17,9 +17,7 @@ import com.app.entity.Driver;
 import com.app.entity.Role;
 import com.app.entity.School;
 import com.app.entity.SchoolUser;
-import com.app.entity.Student;
-import com.app.entity.Trip;
-import com.app.entity.TripStudent;
+import com.app.entity.SchoolVehicle;
 import com.app.entity.User;
 import com.app.entity.Vehicle;
 import com.app.entity.VehicleDriver;
@@ -44,6 +42,7 @@ import com.app.repository.VehicleOwnerRepository;
 import com.app.repository.VehicleRepository;
 import com.app.service.IPendingUserService;
 import com.app.service.IVehicleOwnerService;
+import com.app.service.IWebSocketNotificationService;
 
 
 @Service
@@ -65,6 +64,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 	private final StudentRepository studentRepository;
 	private final TripRepository tripRepository;
 	private final TripStudentRepository tripStudentRepository;
+	private final IWebSocketNotificationService webSocketNotificationService;
 
 	@Autowired
 	public VehicleOwnerServiceImpl(
@@ -81,7 +81,8 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 			SchoolVehicleRepository schoolVehicleRepository,
 			StudentRepository studentRepository,
 			TripRepository tripRepository,
-			TripStudentRepository tripStudentRepository) {
+			TripStudentRepository tripStudentRepository,
+			IWebSocketNotificationService webSocketNotificationService) {
 		this.vehicleOwnerRepository = vehicleOwnerRepository;
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
@@ -96,6 +97,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 		this.studentRepository = studentRepository;
 		this.tripRepository = tripRepository;
 		this.tripStudentRepository = tripStudentRepository;
+		this.webSocketNotificationService = webSocketNotificationService;
 	}
 	
 	
@@ -438,77 +440,30 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 
         System.out.println("🔍 Getting vehicles for owner: " + owner.getName() + " (ID: " + ownerId + ")");
         
-        // Get all vehicles owned by this owner using the owner's username (createdBy field)
-        // First try with owner's username from user table
-        User ownerUser = owner.getUser();
-        String username = ownerUser != null ? ownerUser.getUserName() : null;
+        // Get vehicles through SchoolVehicle relationship (proper way)
+        List<SchoolVehicle> schoolVehicles = schoolVehicleRepository.findByOwner_OwnerId(ownerId);
+        List<Vehicle> vehicles = schoolVehicles.stream()
+                .map(SchoolVehicle::getVehicle)
+                .filter(vehicle -> vehicle.getIsActive()) // Only active vehicles
+                .collect(Collectors.toList());
         
-        System.out.println("🔍 Owner username: " + username);
+        System.out.println("🔍 Found " + vehicles.size() + " vehicles through SchoolVehicle relationship");
         
-        List<Vehicle> vehicles = new ArrayList<>();
-        if (username != null) {
-            vehicles = vehicleRepository.findByCreatedBy(username);
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using username: " + username);
-        }
-        
-        // Also try findByCreatedBy with owner name as fallback
+        // Fallback: If no vehicles through relationship, try createdBy field
         if (vehicles.isEmpty()) {
-            System.out.println("🔍 Trying findByCreatedBy with owner name: " + owner.getName());
-            vehicles = vehicleRepository.findByCreatedBy(owner.getName());
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using findByCreatedBy with name");
-        }
-        
-        // If still no vehicles, try with different variations
-        if (vehicles.isEmpty()) {
-            System.out.println("🔍 Trying with owner email: " + owner.getEmail());
-            vehicles = vehicleRepository.findByCreatedBy(owner.getEmail());
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using email");
-        }
-        
-        if (vehicles.isEmpty()) {
-            System.out.println("🔍 Trying with owner contact: " + owner.getContactNumber());
-            vehicles = vehicleRepository.findByCreatedBy(owner.getContactNumber());
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using contact");
-        }
-        
-        // If still no vehicles, try case-insensitive search
-        if (vehicles.isEmpty()) {
-            System.out.println("🔍 Trying case-insensitive search for: " + owner.getName());
-            // Get all vehicles and filter by name (case-insensitive)
-            List<Vehicle> allVehicles = vehicleRepository.findAll();
-            System.out.println("🔍 Total vehicles in database: " + allVehicles.size());
+            User ownerUser = owner.getUser();
+            String username = ownerUser != null ? ownerUser.getUserName() : null;
             
-            // Print all vehicles with their createdBy field
-            for (Vehicle v : allVehicles) {
-                System.out.println("🔍 Vehicle ID: " + v.getVehicleId() + ", Number: " + v.getVehicleNumber() + ", CreatedBy: " + v.getCreatedBy());
+            if (username != null) {
+                vehicles = vehicleRepository.findByCreatedBy(username);
+                System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using username: " + username);
             }
             
-            vehicles = allVehicles.stream()
-                .filter(v -> v.getCreatedBy() != null && 
-                           v.getCreatedBy().toLowerCase().contains(owner.getName().toLowerCase()))
-                .collect(Collectors.toList());
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using case-insensitive search");
-        }
-        
-        // If still no vehicles, try exact match with any field
-        if (vehicles.isEmpty()) {
-            System.out.println("🔍 Trying exact match search for: " + owner.getName());
-            List<Vehicle> allVehicles = vehicleRepository.findAll();
-            vehicles = allVehicles.stream()
-                .filter(v -> v.getCreatedBy() != null && 
-                           (v.getCreatedBy().equals(owner.getName()) ||
-                            v.getCreatedBy().equals(owner.getEmail()) ||
-                            v.getCreatedBy().equals(owner.getContactNumber())))
-                .collect(Collectors.toList());
-            System.out.println("🔍 Found " + vehicles.size() + " vehicles using exact match search");
-        }
-        
-        // TEMPORARY FIX: If still no vehicles, return all vehicles for this owner
-        if (vehicles.isEmpty()) {
-            System.out.println("🔍 TEMPORARY FIX: Returning all vehicles for debugging");
-            List<Vehicle> allVehicles = vehicleRepository.findAll();
-            vehicles = allVehicles; // Return all vehicles temporarily
-            System.out.println("🔍 TEMPORARY: Returning " + vehicles.size() + " vehicles");
+            // Try with owner name
+            if (vehicles.isEmpty()) {
+                vehicles = vehicleRepository.findByCreatedBy(owner.getName());
+                System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using owner name");
+            }
         }
         
         List<Map<String, Object>> vehicleList = vehicles.stream()
@@ -549,56 +504,28 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
         
         System.out.println("🔍 Owner username: " + username);
         
-        // Get all drivers created by this owner (using createdBy field)
-        List<Driver> allDrivers = new ArrayList<>();
-        if (username != null) {
-            allDrivers = driverRepository.findByCreatedBy(username);
-            System.out.println("🔍 Found " + allDrivers.size() + " drivers using username: " + username);
-        }
+        // Get drivers through VehicleDriver relationship (proper way)
+        List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
+        List<Driver> allDrivers = vehicleDrivers.stream()
+                .map(VehicleDriver::getDriver)
+                .filter(driver -> driver.getIsActive()) // Only active drivers
+                .distinct() // Remove duplicates
+                .collect(Collectors.toList());
         
-        // Also try with owner name as fallback
-        if (allDrivers.isEmpty()) {
-            System.out.println("🔍 Trying findByCreatedBy with owner name: " + owner.getName());
-            allDrivers = driverRepository.findByCreatedBy(owner.getName());
-            System.out.println("🔍 Found " + allDrivers.size() + " drivers using name");
-        }
+        System.out.println("🔍 Found " + allDrivers.size() + " drivers through VehicleDriver relationship");
         
-        // If still no drivers, try with different variations
+        // Fallback: If no drivers through relationship, try createdBy field
         if (allDrivers.isEmpty()) {
-            System.out.println("🔍 Trying with owner email: " + owner.getEmail());
-            allDrivers = driverRepository.findByCreatedBy(owner.getEmail());
-            System.out.println("🔍 Found " + allDrivers.size() + " drivers using email");
-        }
-        
-        if (allDrivers.isEmpty()) {
-            System.out.println("🔍 Trying with owner contact: " + owner.getContactNumber());
-            allDrivers = driverRepository.findByCreatedBy(owner.getContactNumber());
-            System.out.println("🔍 Found " + allDrivers.size() + " drivers using contact");
-        }
-        
-        // If still no drivers, try case-insensitive search
-        if (allDrivers.isEmpty()) {
-            System.out.println("🔍 Trying case-insensitive search for: " + owner.getName());
-            List<Driver> allDriversInDb = driverRepository.findAll();
-            System.out.println("🔍 Total drivers in database: " + allDriversInDb.size());
-            
-            // Print all drivers with their createdBy field
-            for (Driver d : allDriversInDb) {
-                System.out.println("🔍 Driver ID: " + d.getDriverId() + ", Name: " + d.getDriverName() + ", CreatedBy: " + d.getCreatedBy());
+            if (username != null) {
+                allDrivers = driverRepository.findByCreatedBy(username);
+                System.out.println("🔍 Fallback: Found " + allDrivers.size() + " drivers using username: " + username);
             }
             
-            allDrivers = allDriversInDb.stream()
-                .filter(d -> d.getCreatedBy() != null && 
-                           d.getCreatedBy().toLowerCase().contains(owner.getName().toLowerCase()))
-                .collect(Collectors.toList());
-            System.out.println("🔍 Found " + allDrivers.size() + " drivers using case-insensitive search");
-        }
-        
-        // TEMPORARY FIX: If still no drivers, return all drivers for debugging
-        if (allDrivers.isEmpty()) {
-            System.out.println("🔍 TEMPORARY FIX: Returning all drivers for debugging");
-            allDrivers = driverRepository.findAll();
-            System.out.println("🔍 TEMPORARY: Returning " + allDrivers.size() + " drivers");
+            // Try with owner name
+            if (allDrivers.isEmpty()) {
+                allDrivers = driverRepository.findByCreatedBy(owner.getName());
+                System.out.println("🔍 Fallback: Found " + allDrivers.size() + " drivers using owner name");
+            }
         }
         
         // Convert to response format
