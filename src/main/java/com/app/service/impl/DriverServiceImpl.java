@@ -73,13 +73,7 @@ public class DriverServiceImpl implements IDriverService {
 
     @Override
     public ApiResponse createDriver(DriverRequestDto request) {
-        // Check if user exists
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + request.getUserId()));
-        
-        if (driverRepository.existsByUser(user)) {
-            return new ApiResponse(false, "User already has a driver record", null);
-        }
+        // Note: User will be created and linked during activation, no need to check existing user
 
         // Check duplicate driver contact
         if (driverRepository.existsByDriverContactNumber(request.getDriverContactNumber())) {
@@ -95,7 +89,7 @@ public class DriverServiceImpl implements IDriverService {
                 .isActive(request.getIsActive())
                 .createdBy(request.getCreatedBy())
                 .createdDate(LocalDateTime.now())
-                .user(user) // assuming Driver has ManyToOne relation with User
+                .user(null) // User will be linked during activation
                 .build();
 
         Driver savedDriver  = driverRepository.save(driver);
@@ -104,45 +98,22 @@ public class DriverServiceImpl implements IDriverService {
         Role role = roleRepository.findByRoleName("DRIVER")
                 .orElseThrow(() -> new ResourceNotFoundException("Role DRIVER not found"));
 
-        // ✅ IMMEDIATELY add DRIVER role to user account
-        System.out.println("🔍 Adding DRIVER role to user: " + user.getUserName());
-        try {
-            // Check if user already has DRIVER role using repository
-            boolean hasDriverRole = userRoleRepository.existsByUserAndRole_RoleName(user, "DRIVER");
-            
-            if (!hasDriverRole) {
-                // Add DRIVER role to user
-                UserRole userRole = UserRole.builder()
-                    .user(user)
-                    .role(role)
-                    .isActive(true)
-                    .createdBy(request.getCreatedBy())
-                    .createdDate(LocalDateTime.now())
-                    .build();
-                
-                userRoleRepository.save(userRole);
-                System.out.println("🔍 DRIVER role added successfully to user: " + user.getUserName());
-            } else {
-                System.out.println("🔍 User already has DRIVER role");
-            }
-        } catch (Exception e) {
-            System.out.println("⚠️ Error adding DRIVER role: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Note: UserRole will be created when driver activates account via email link
+        // This ensures driver sets their own username/password
 
-        // Create PendingUser entry for activation link (optional now)
+        // Create PendingUser entry for activation
         PendingUserRequestDTO pendingReq = PendingUserRequestDTO.builder()
                 .entityType("DRIVER")
                 .entityId(savedDriver.getDriverId().longValue())
                 .email(request.getEmail())
                 .contactNumber(request.getDriverContactNumber())
-                .roleId(role.getRoleId())
+                .roleId(role.getRoleId()) // DRIVER role (ID = 4)
                 .createdBy(request.getCreatedBy())
                 .build();
 
         pendingUserService.createPendingUser(pendingReq);
 
-        return new ApiResponse(true, "Driver registered successfully. Driver can now login.",
+        return new ApiResponse(true, "Driver registered successfully. Activation link sent to email.",
                 savedDriver.getDriverId());
     }
 
@@ -207,13 +178,23 @@ public class DriverServiceImpl implements IDriverService {
 
     @Override
     public ApiResponse getAllDrivers(Integer ownerId) {
-        // Assuming ownerId is actually userId to filter drivers
-        List<DriverResponseDto> drivers = driverRepository.findAll().stream()
+        // Only return drivers with user credentials (activated drivers)
+        List<DriverResponseDto> drivers = driverRepository.findActivatedDrivers().stream()
                 .filter(d -> d.getUser() != null && d.getUser().getUId().equals(ownerId))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
 
-        return new ApiResponse(true, "Drivers fetched successfully", drivers);
+        return new ApiResponse(true, "Activated drivers fetched successfully", drivers);
+    }
+
+    @Override
+    public ApiResponse getAllDriversForAdmin() {
+        // Get all drivers including non-activated ones (for admin purposes)
+        List<DriverResponseDto> drivers = driverRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return new ApiResponse(true, "All drivers fetched successfully", drivers);
     }
 
     // Helper method to map entity to response DTO
@@ -245,6 +226,13 @@ public class DriverServiceImpl implements IDriverService {
             
             System.out.println("🔍 Driver found: " + driver.getDriverName() + " (ID: " + driver.getDriverId() + ")");
 
+            // Validate that the driver has user credentials (is activated)
+            if (driver.getUser() == null) {
+                System.out.println("🔍 Driver has not completed user activation");
+                return new ApiResponse(false, "Driver has not completed user activation. Please complete registration first.", null);
+            }
+            System.out.println("🔍 Driver is activated with user ID = " + driver.getUser().getUId());
+
             // Get driver's assigned vehicle
             List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByDriverAndIsActiveTrue(driver);
             System.out.println("🔍 Found " + vehicleDrivers.size() + " active vehicle assignments for driver");
@@ -253,7 +241,33 @@ public class DriverServiceImpl implements IDriverService {
 
             if (vehicleDriver == null) {
                 System.out.println("🔍 No active vehicle assignment found for driver: " + driver.getDriverName());
-                return new ApiResponse(false, "No active vehicle assignment found for driver", null);
+                // Return a basic dashboard without vehicle info
+                DriverDashboardResponseDto dashboard = DriverDashboardResponseDto.builder()
+                        .driverId(driver.getDriverId())
+                        .driverName(driver.getDriverName())
+                        .driverContactNumber(driver.getDriverContactNumber())
+                        .driverPhoto(driver.getDriverPhoto())
+                        .vehicleId(null)
+                        .vehicleNumber("Not Assigned")
+                        .vehicleType(null)
+                        .vehicleCapacity(0)
+                        .schoolId(null)
+                        .schoolName("Not Assigned")
+                        .totalTripsToday(0)
+                        .completedTrips(0)
+                        .pendingTrips(0)
+                        .totalStudentsToday(0)
+                        .studentsPickedUp(0)
+                        .studentsDropped(0)
+                        .currentTripId(null)
+                        .currentTripName(null)
+                        .currentTripStatus(null)
+                        .currentTripStartTime(null)
+                        .currentTripStudentCount(0)
+                        .recentActivities(new ArrayList<>())
+                        .build();
+                
+                return new ApiResponse(true, "Driver dashboard data retrieved successfully (No vehicle assigned)", dashboard);
             }
             
             System.out.println("🔍 Vehicle assignment found: Vehicle " + vehicleDriver.getVehicle().getVehicleNumber() + 
@@ -325,12 +339,33 @@ public class DriverServiceImpl implements IDriverService {
             Driver driver = driverRepository.findById(driverId)
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
 
+            // Validate that the driver has user credentials (is activated)
+            if (driver.getUser() == null) {
+                return new ApiResponse(false, "Driver has not completed user activation. Please complete registration first.", null);
+            }
+
+            // Try multiple methods to find trips
             List<Trip> trips = tripRepository.findByDriverAndIsActiveTrue(driver);
+            
+            // If no trips found, try to find trips by driver ID directly
+            if (trips.isEmpty()) {
+                trips = tripRepository.findByDriver_DriverId(driverId);
+            }
+            
+            // If still no trips, try to find today's trips
+            if (trips.isEmpty()) {
+                trips = tripRepository.findByDriver_DriverIdAndDate(driverId, LocalDate.now());
+            }
+
             List<TripResponseDto> tripDtos = trips.stream()
                     .map(this::mapToTripResponseDto)
                     .collect(Collectors.toList());
 
-            return new ApiResponse(true, "Assigned trips retrieved successfully", tripDtos);
+            String message = trips.isEmpty() ? 
+                "No trips assigned to this driver yet. Please contact school admin to assign trips." : 
+                "Assigned trips retrieved successfully";
+
+            return new ApiResponse(true, message, tripDtos);
         } catch (Exception e) {
             return new ApiResponse(false, "Error retrieving assigned trips: " + e.getMessage(), null);
         }
@@ -405,6 +440,11 @@ public class DriverServiceImpl implements IDriverService {
             Driver driver = driverRepository.findById(driverId)
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
 
+            // Validate that the driver has user credentials (is activated)
+            if (driver.getUser() == null) {
+                return new ApiResponse(false, "Driver has not completed user activation. Please complete registration first.", null);
+            }
+
             Trip trip = tripRepository.findByDriverAndTripId(driver, tripId)
                     .orElseThrow(() -> new ResourceNotFoundException("Trip not found or not assigned to driver"));
 
@@ -413,10 +453,12 @@ public class DriverServiceImpl implements IDriverService {
             tripRepository.save(trip);
 
             // Create trip status entry
+            LocalDateTime startTime = LocalDateTime.now();
             TripStatus tripStatus = TripStatus.builder()
                     .trip(trip)
                     .status(TripStatus.TripStatusType.IN_PROGRESS)
-                    .statusTime(LocalDateTime.now())
+                    .statusTime(startTime)
+                    .startTime(startTime)
                     .remarks("Trip started by driver")
                     .createdBy(driver.getDriverName())
                     .build();
@@ -434,6 +476,11 @@ public class DriverServiceImpl implements IDriverService {
             Driver driver = driverRepository.findById(driverId)
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
 
+            // Validate that the driver has user credentials (is activated)
+            if (driver.getUser() == null) {
+                return new ApiResponse(false, "Driver has not completed user activation. Please complete registration first.", null);
+            }
+
             Trip trip = tripRepository.findByDriverAndTripId(driver, tripId)
                     .orElseThrow(() -> new ResourceNotFoundException("Trip not found or not assigned to driver"));
 
@@ -441,11 +488,25 @@ public class DriverServiceImpl implements IDriverService {
             trip.setTripEndTime(LocalDateTime.now());
             tripRepository.save(trip);
 
+            // Get the previous IN_PROGRESS status to get start time
+            LocalDateTime endTime = LocalDateTime.now();
+            LocalDateTime startTime = null;
+            
+            // Find the most recent IN_PROGRESS status for this trip
+            List<TripStatus> inProgressStatuses = tripStatusRepository.findByTripAndStatusOrderByStatusTimeDesc(
+                trip, TripStatus.TripStatusType.IN_PROGRESS);
+            
+            if (!inProgressStatuses.isEmpty()) {
+                startTime = inProgressStatuses.get(0).getStartTime();
+            }
+            
             // Create trip status entry
             TripStatus tripStatus = TripStatus.builder()
                     .trip(trip)
                     .status(TripStatus.TripStatusType.COMPLETED)
-                    .statusTime(LocalDateTime.now())
+                    .statusTime(endTime)
+                    .startTime(startTime)
+                    .endTime(endTime)
                     .remarks("Trip completed by driver")
                     .createdBy(driver.getDriverName())
                     .build();
@@ -456,6 +517,7 @@ public class DriverServiceImpl implements IDriverService {
             return new ApiResponse(false, "Error ending trip: " + e.getMessage(), null);
         }
     }
+    
 
     // Helper methods
     private DriverDashboardResponseDto.RecentActivityDto mapToActivityDto(DispatchLog log) {
@@ -522,3 +584,4 @@ public class DriverServiceImpl implements IDriverService {
                 .build();
     }
 }
+

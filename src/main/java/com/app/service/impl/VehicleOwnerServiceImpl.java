@@ -3,8 +3,10 @@ package com.app.service.impl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +21,11 @@ import com.app.entity.School;
 import com.app.entity.SchoolUser;
 import com.app.entity.SchoolVehicle;
 import com.app.entity.User;
+import com.app.entity.UserRole;
 import com.app.entity.Vehicle;
 import com.app.entity.VehicleDriver;
 import com.app.entity.VehicleOwner;
+import com.app.entity.Trip;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.PendingUserRequestDTO;
 import com.app.payload.request.VehicleOwnerRequestDto;
@@ -37,6 +41,7 @@ import com.app.repository.StudentRepository;
 import com.app.repository.TripRepository;
 import com.app.repository.TripStudentRepository;
 import com.app.repository.UserRepository;
+import com.app.repository.UserRoleRepository;
 import com.app.repository.VehicleDriverRepository;
 import com.app.repository.VehicleOwnerRepository;
 import com.app.repository.VehicleRepository;
@@ -44,9 +49,12 @@ import com.app.service.IPendingUserService;
 import com.app.service.IVehicleOwnerService;
 import com.app.service.IWebSocketNotificationService;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 @Service
 @Transactional
+@Slf4j
 public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 
 	private final VehicleOwnerRepository vehicleOwnerRepository;
@@ -55,6 +63,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 	private final IPendingUserService pendingUserService;
 	private final SchoolRepository schoolRepository;
     private final SchoolUserRepository schoolUserRepository;
+    private final UserRoleRepository userRoleRepository;
     
     private final DispatchLogRepository dispatchLogRepository;
 	private final VehicleRepository vehicleRepository;
@@ -74,6 +83,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 			IPendingUserService pendingUserService,
 			SchoolRepository schoolRepository,
             SchoolUserRepository schoolUserRepository,
+            UserRoleRepository userRoleRepository,
             DispatchLogRepository dispatchLogRepository,
 			VehicleRepository vehicleRepository,
 			VehicleDriverRepository vehicleDriverRepository,
@@ -89,6 +99,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 		this.pendingUserService = pendingUserService;
 		this.schoolRepository = schoolRepository;
         this.schoolUserRepository = schoolUserRepository;
+        this.userRoleRepository = userRoleRepository;
         this.dispatchLogRepository = dispatchLogRepository;
 		this.vehicleRepository = vehicleRepository;
 		this.vehicleDriverRepository = vehicleDriverRepository;
@@ -280,6 +291,9 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
             owner.setUpdatedBy("SYSTEM");
             owner.setUpdatedDate(LocalDateTime.now());
             vehicleOwnerRepository.save(owner);
+
+            // Note: UserRole will be created via PendingUser activation flow
+            // This ensures proper role assignment and avoids duplicates
 
             return new ApiResponse(true, "Vehicle owner activated successfully", mapToResponse(owner));
         } catch (Exception e) {
@@ -504,29 +518,42 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
         
         System.out.println("🔍 Owner username: " + username);
         
-        // Get drivers through VehicleDriver relationship (proper way)
-        List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
-        List<Driver> allDrivers = vehicleDrivers.stream()
-                .map(VehicleDriver::getDriver)
-                .filter(driver -> driver.getIsActive()) // Only active drivers
-                .distinct() // Remove duplicates
-                .collect(Collectors.toList());
+        // Get ALL activated drivers created by this owner (not just assigned ones)
+        List<Driver> allDrivers = new ArrayList<>();
         
-        System.out.println("🔍 Found " + allDrivers.size() + " drivers through VehicleDriver relationship");
-        
-        // Fallback: If no drivers through relationship, try createdBy field
-        if (allDrivers.isEmpty()) {
-            if (username != null) {
-                allDrivers = driverRepository.findByCreatedBy(username);
-                System.out.println("🔍 Fallback: Found " + allDrivers.size() + " drivers using username: " + username);
-            }
-            
-            // Try with owner name
-            if (allDrivers.isEmpty()) {
-                allDrivers = driverRepository.findByCreatedBy(owner.getName());
-                System.out.println("🔍 Fallback: Found " + allDrivers.size() + " drivers using owner name");
+        // First try with username
+        if (username != null) {
+            allDrivers = driverRepository.findActivatedDriversByCreatedBy(username);
+            System.out.println("🔍 Found " + allDrivers.size() + " activated drivers using username: " + username);
+            for (Driver driver : allDrivers) {
+                System.out.println("🔍 Driver: " + driver.getDriverName() + " (ID: " + driver.getDriverId() + ")");
             }
         }
+        
+        // If no drivers found with username, try with owner name
+        if (allDrivers.isEmpty()) {
+            allDrivers = driverRepository.findActivatedDriversByCreatedBy(owner.getName());
+            System.out.println("🔍 Found " + allDrivers.size() + " activated drivers using owner name: " + owner.getName());
+            for (Driver driver : allDrivers) {
+                System.out.println("🔍 Driver: " + driver.getDriverName() + " (ID: " + driver.getDriverId() + ")");
+            }
+        }
+        
+        // Also get drivers through VehicleDriver relationship to ensure we don't miss any
+        List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
+        List<Driver> assignedDrivers = vehicleDrivers.stream()
+                .map(VehicleDriver::getDriver)
+                .filter(driver -> driver.getIsActive() && driver.getUser() != null)
+                .collect(Collectors.toList());
+        
+        System.out.println("🔍 Found " + assignedDrivers.size() + " drivers through VehicleDriver relationship");
+        
+        // Merge both lists and remove duplicates
+        Set<Driver> uniqueDrivers = new HashSet<>(allDrivers);
+        uniqueDrivers.addAll(assignedDrivers);
+        allDrivers = new ArrayList<>(uniqueDrivers);
+        
+        System.out.println("🔍 Total unique activated drivers: " + allDrivers.size());
         
         // Convert to response format
         List<Map<String, Object>> driverList = allDrivers.stream()
@@ -749,6 +776,122 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
         }
     }
 
+    @Override
+    public ApiResponse getDriverAssignments(Integer ownerId) {
+        System.out.println("🔍 getDriverAssignments called with ownerId: " + ownerId);
+        try {
+            // Validate vehicle owner exists
+            VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ID: " + ownerId));
+
+            System.out.println("🔍 Owner found: " + owner.getName());
+
+            // Get all driver assignments for this owner through VehicleDriver relationship
+            List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
+            System.out.println("🔍 Found " + vehicleDrivers.size() + " vehicle-driver assignments");
+
+            // Convert to response format
+            List<Map<String, Object>> assignmentList = vehicleDrivers.stream()
+                    .filter(vd -> vd.getIsActive()) // Only active assignments
+                    .map(vd -> {
+                        Map<String, Object> assignmentMap = new HashMap<>();
+                        assignmentMap.put("assignmentId", vd.getVehicleDriverId());
+                        assignmentMap.put("vehicleId", vd.getVehicle().getVehicleId());
+                        assignmentMap.put("vehicleNumber", vd.getVehicle().getVehicleNumber());
+                        assignmentMap.put("vehicleType", vd.getVehicle().getVehicleType());
+                        assignmentMap.put("driverId", vd.getDriver().getDriverId());
+                        assignmentMap.put("driverName", vd.getDriver().getDriverName());
+                        assignmentMap.put("driverContactNumber", vd.getDriver().getDriverContactNumber());
+                        assignmentMap.put("schoolId", vd.getSchool().getSchoolId());
+                        assignmentMap.put("schoolName", vd.getSchool().getSchoolName());
+                        assignmentMap.put("isPrimary", vd.getIsPrimary());
+                        assignmentMap.put("isActive", vd.getIsActive());
+                        assignmentMap.put("startDate", vd.getStartDate());
+                        assignmentMap.put("endDate", vd.getEndDate());
+                        assignmentMap.put("createdDate", vd.getCreatedDate());
+                        assignmentMap.put("createdBy", vd.getCreatedBy());
+                        return assignmentMap;
+                    })
+                    .collect(Collectors.toList());
+
+            System.out.println("🔍 Returning " + assignmentList.size() + " active assignments");
+            return new ApiResponse(true, "Driver assignments retrieved successfully", assignmentList);
+            
+        } catch (Exception e) {
+            System.out.println("🔍 Error in getDriverAssignments: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Error retrieving driver assignments: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getTotalAssignmentsByOwner(Integer ownerId) {
+        System.out.println("🔍 getTotalAssignmentsByOwner called with ownerId: " + ownerId);
+        try {
+            // Validate vehicle owner exists
+            VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ID: " + ownerId));
+
+            System.out.println("🔍 Owner found: " + owner.getName());
+
+            // Get all driver assignments for this owner through VehicleDriver relationship
+            List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
+            
+            // Count active assignments
+            long activeAssignments = vehicleDrivers.stream()
+                    .filter(vd -> vd.getIsActive())
+                    .count();
+
+            System.out.println("🔍 Total active assignments: " + activeAssignments);
+            return new ApiResponse(true, "Total assignments retrieved successfully", activeAssignments);
+            
+        } catch (Exception e) {
+            System.out.println("🔍 Error in getTotalAssignmentsByOwner: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Error retrieving total assignments: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getPendingDriverRegistrations(Integer ownerId) {
+        System.out.println("🔍 getPendingDriverRegistrations called with ownerId: " + ownerId);
+        try {
+            // Validate vehicle owner exists
+            VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ID: " + ownerId));
+
+            System.out.println("🔍 Owner found: " + owner.getName());
+
+            // Get owner's user to find drivers created by this owner
+            User ownerUser = owner.getUser();
+            String username = ownerUser != null ? ownerUser.getUserName() : null;
+            
+            // Get all drivers created by this owner (including non-activated ones)
+            List<Driver> allDrivers = new ArrayList<>();
+            if (username != null) {
+                allDrivers = driverRepository.findByCreatedBy(username);
+            }
+            
+            // Try with owner name if no drivers found with username
+            if (allDrivers.isEmpty()) {
+                allDrivers = driverRepository.findByCreatedBy(owner.getName());
+            }
+            
+            // Filter to get only non-activated drivers (drivers without user credentials)
+            List<Driver> pendingDrivers = allDrivers.stream()
+                    .filter(driver -> driver.getUser() == null && driver.getIsActive())
+                    .collect(Collectors.toList());
+
+            System.out.println("🔍 Found " + pendingDrivers.size() + " pending driver registrations");
+            return new ApiResponse(true, "Pending driver registrations retrieved successfully", pendingDrivers.size());
+            
+        } catch (Exception e) {
+            System.out.println("🔍 Error in getPendingDriverRegistrations: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Error retrieving pending driver registrations: " + e.getMessage(), null);
+        }
+    }
+
     
     private String getActivityDescription(EventType eventType, String vehicleNumber, String studentName) {
         switch (eventType) {
@@ -766,6 +909,392 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
                 return "Vehicle $vehicleNumber exited school gate";
             default:
                 return "Vehicle $vehicleNumber activity recorded";
+        }
+    }
+
+    // ========== TRIP ASSIGNMENT METHODS ==========
+
+    @Override
+    public ApiResponse getTripsByOwner(Integer ownerId) {
+        try {
+            log.info("Getting trips for owner: {}", ownerId);
+            
+            // Get all vehicles owned by this owner
+            List<SchoolVehicle> schoolVehicles = schoolVehicleRepository.findByOwner_OwnerId(ownerId);
+            if (schoolVehicles.isEmpty()) {
+                return new ApiResponse(true, "No vehicles found for this owner", new ArrayList<>());
+            }
+            
+            // Get vehicle IDs
+            List<Integer> vehicleIds = schoolVehicles.stream()
+                    .map(sv -> sv.getVehicle().getVehicleId())
+                    .collect(Collectors.toList());
+            
+            // Get all trips for these vehicles
+            List<Trip> trips = tripRepository.findByVehicleVehicleIdIn(vehicleIds);
+            
+            // Map to response DTOs
+            List<Map<String, Object>> tripData = trips.stream()
+                    .map(this::mapTripToResponse)
+                    .collect(Collectors.toList());
+            
+            return new ApiResponse(true, "Trips retrieved successfully", tripData);
+            
+        } catch (Exception e) {
+            log.error("Error getting trips for owner {}: {}", ownerId, e.getMessage(), e);
+            return new ApiResponse(false, "Error retrieving trips: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getAvailableVehiclesForTrip(Integer ownerId, Integer schoolId) {
+        try {
+            log.info("Getting available vehicles for owner: {} and school: {}", ownerId, schoolId);
+            
+            // Get vehicles owned by this owner and associated with this school
+            List<SchoolVehicle> schoolVehicles = schoolVehicleRepository
+                    .findByOwner_OwnerIdAndSchool_SchoolId(ownerId, schoolId);
+            
+            if (schoolVehicles.isEmpty()) {
+                return new ApiResponse(true, "No vehicles available for this school", new ArrayList<>());
+            }
+            
+            // Map to response format
+            List<Map<String, Object>> vehicleData = schoolVehicles.stream()
+                    .map(sv -> {
+                        Vehicle vehicle = sv.getVehicle();
+                        Map<String, Object> vehicleMap = new HashMap<>();
+                        vehicleMap.put("vehicleId", vehicle.getVehicleId());
+                        vehicleMap.put("vehicleNumber", vehicle.getVehicleNumber());
+                        vehicleMap.put("registrationNumber", vehicle.getRegistrationNumber());
+                        vehicleMap.put("vehicleType", vehicle.getVehicleType().toString());
+                        vehicleMap.put("capacity", vehicle.getCapacity());
+                        vehicleMap.put("isActive", vehicle.getIsActive());
+                        
+                        // Get assigned driver info
+                        List<VehicleDriver> vehicleDrivers = vehicleDriverRepository
+                                .findByVehicleAndIsActiveTrue(vehicle);
+                        if (!vehicleDrivers.isEmpty()) {
+                            VehicleDriver primaryDriver = vehicleDrivers.stream()
+                                    .filter(VehicleDriver::getIsPrimary)
+                                    .findFirst()
+                                    .orElse(vehicleDrivers.get(0));
+                            
+                            Driver driver = primaryDriver.getDriver();
+                            vehicleMap.put("assignedDriverId", driver.getDriverId());
+                            vehicleMap.put("assignedDriverName", driver.getDriverName());
+                            vehicleMap.put("assignedDriverContact", driver.getDriverContactNumber());
+                            vehicleMap.put("hasAssignedDriver", driver.getUser() != null);
+                        } else {
+                            vehicleMap.put("assignedDriverId", null);
+                            vehicleMap.put("assignedDriverName", "No Driver Assigned");
+                            vehicleMap.put("assignedDriverContact", null);
+                            vehicleMap.put("hasAssignedDriver", false);
+                        }
+                        
+                        return vehicleMap;
+                    })
+                    .collect(Collectors.toList());
+            
+            return new ApiResponse(true, "Available vehicles retrieved successfully", vehicleData);
+            
+        } catch (Exception e) {
+            log.error("Error getting available vehicles for owner {} and school {}: {}", 
+                    ownerId, schoolId, e.getMessage(), e);
+            return new ApiResponse(false, "Error retrieving vehicles: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse assignTripToVehicle(Integer tripId, Integer vehicleId, String updatedBy) {
+        try {
+            log.info("Assigning trip {} to vehicle {} by {}", tripId, vehicleId, updatedBy);
+            
+            // Get trip
+            Trip trip = tripRepository.findById(tripId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Trip not found with ID: " + tripId));
+            
+            // Get vehicle
+            Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with ID: " + vehicleId));
+            
+            // Verify vehicle belongs to the owner (through school association)
+            SchoolVehicle schoolVehicle = schoolVehicleRepository
+                    .findByVehicle_VehicleIdAndSchool_SchoolId(vehicleId, trip.getSchool().getSchoolId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Vehicle is not associated with the trip's school"));
+            
+            // Update trip with new vehicle
+            trip.setVehicle(vehicle);
+            trip.setUpdatedBy(updatedBy);
+            trip.setUpdatedDate(LocalDateTime.now());
+            
+            // Auto-assign driver if vehicle has an assigned driver
+            List<VehicleDriver> vehicleDrivers = vehicleDriverRepository
+                    .findByVehicleAndIsActiveTrue(vehicle);
+            if (!vehicleDrivers.isEmpty()) {
+                VehicleDriver primaryDriver = vehicleDrivers.stream()
+                        .filter(VehicleDriver::getIsPrimary)
+                        .findFirst()
+                        .orElse(vehicleDrivers.get(0));
+                
+                Driver driver = primaryDriver.getDriver();
+                if (driver.getUser() != null) { // Only assign if driver is activated
+                    trip.setDriver(driver);
+                    log.info("Auto-assigned driver {} to trip {}", driver.getDriverName(), tripId);
+                }
+            }
+            
+            tripRepository.save(trip);
+            
+            // Map to response
+            Map<String, Object> responseData = mapTripToResponse(trip);
+            
+            return new ApiResponse(true, "Trip assigned to vehicle successfully", responseData);
+            
+        } catch (ResourceNotFoundException e) {
+            log.error("Resource not found: {}", e.getMessage());
+            return new ApiResponse(false, e.getMessage(), null);
+        } catch (Exception e) {
+            log.error("Error assigning trip {} to vehicle {}: {}", tripId, vehicleId, e.getMessage(), e);
+            return new ApiResponse(false, "Error assigning trip: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Maps Trip entity to response format
+     */
+    private Map<String, Object> mapTripToResponse(Trip trip) {
+        Map<String, Object> tripMap = new HashMap<>();
+        tripMap.put("tripId", trip.getTripId());
+        tripMap.put("tripName", trip.getTripName());
+        tripMap.put("tripNumber", trip.getTripNumber());
+        tripMap.put("tripType", trip.getTripType() != null ? trip.getTripType().name() : null);
+        tripMap.put("tripTypeDisplay", trip.getTripType() != null ? trip.getTripType().getDisplayName() : null);
+        tripMap.put("routeName", trip.getRouteName());
+        tripMap.put("routeDescription", trip.getRouteDescription());
+        tripMap.put("scheduledTime", trip.getScheduledTime());
+        tripMap.put("estimatedDurationMinutes", trip.getEstimatedDurationMinutes());
+        tripMap.put("tripStatus", trip.getTripStatus());
+        tripMap.put("tripStartTime", trip.getTripStartTime());
+        tripMap.put("tripEndTime", trip.getTripEndTime());
+        tripMap.put("isActive", trip.getIsActive());
+        tripMap.put("createdBy", trip.getCreatedBy());
+        tripMap.put("createdDate", trip.getCreatedDate());
+        tripMap.put("updatedBy", trip.getUpdatedBy());
+        tripMap.put("updatedDate", trip.getUpdatedDate());
+        
+        // School info
+        if (trip.getSchool() != null) {
+            Map<String, Object> schoolMap = new HashMap<>();
+            schoolMap.put("schoolId", trip.getSchool().getSchoolId());
+            schoolMap.put("schoolName", trip.getSchool().getSchoolName());
+            tripMap.put("school", schoolMap);
+        }
+        
+        // Vehicle info
+        if (trip.getVehicle() != null) {
+            Map<String, Object> vehicleMap = new HashMap<>();
+            vehicleMap.put("vehicleId", trip.getVehicle().getVehicleId());
+            vehicleMap.put("vehicleNumber", trip.getVehicle().getVehicleNumber());
+            vehicleMap.put("registrationNumber", trip.getVehicle().getRegistrationNumber());
+            vehicleMap.put("vehicleType", trip.getVehicle().getVehicleType() != null ? 
+                    trip.getVehicle().getVehicleType().toString() : null);
+            vehicleMap.put("capacity", trip.getVehicle().getCapacity());
+            tripMap.put("vehicle", vehicleMap);
+        }
+        
+        // Driver info
+        if (trip.getDriver() != null) {
+            Map<String, Object> driverMap = new HashMap<>();
+            driverMap.put("driverId", trip.getDriver().getDriverId());
+            driverMap.put("driverName", trip.getDriver().getDriverName());
+            driverMap.put("driverContactNumber", trip.getDriver().getDriverContactNumber());
+            driverMap.put("isActivated", trip.getDriver().getUser() != null);
+            tripMap.put("driver", driverMap);
+        }
+        
+        return tripMap;
+    }
+
+    // ========== ENHANCED DRIVER MANAGEMENT METHODS ==========
+
+    @Override
+    public ApiResponse setDriverAvailability(Integer vehicleDriverId, Boolean isAvailable, String reason, String updatedBy) {
+        try {
+            log.info("Setting driver availability for vehicleDriverId: {}, isAvailable: {}, reason: {}", 
+                    vehicleDriverId, isAvailable, reason);
+            
+            VehicleDriver vehicleDriver = vehicleDriverRepository.findById(vehicleDriverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle-Driver assignment not found with ID: " + vehicleDriverId));
+            
+            vehicleDriver.setIsAvailable(isAvailable);
+            vehicleDriver.setUnavailabilityReason(isAvailable ? null : reason);
+            vehicleDriver.setUpdatedBy(updatedBy);
+            vehicleDriver.setUpdatedDate(LocalDateTime.now());
+            
+            vehicleDriverRepository.save(vehicleDriver);
+            
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("vehicleDriverId", vehicleDriverId);
+            responseData.put("isAvailable", isAvailable);
+            responseData.put("reason", reason);
+            responseData.put("driverName", vehicleDriver.getDriver().getDriverName());
+            responseData.put("vehicleNumber", vehicleDriver.getVehicle().getVehicleNumber());
+            
+            return new ApiResponse(true, "Driver availability updated successfully", responseData);
+            
+        } catch (ResourceNotFoundException e) {
+            log.error("Resource not found: {}", e.getMessage());
+            return new ApiResponse(false, e.getMessage(), null);
+        } catch (Exception e) {
+            log.error("Error setting driver availability: {}", e.getMessage(), e);
+            return new ApiResponse(false, "Error updating driver availability: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse setBackupDriver(Integer vehicleDriverId, Boolean isBackup, String updatedBy) {
+        try {
+            log.info("Setting backup driver for vehicleDriverId: {}, isBackup: {}", vehicleDriverId, isBackup);
+            
+            VehicleDriver vehicleDriver = vehicleDriverRepository.findById(vehicleDriverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle-Driver assignment not found with ID: " + vehicleDriverId));
+            
+            vehicleDriver.setIsBackupDriver(isBackup);
+            vehicleDriver.setUpdatedBy(updatedBy);
+            vehicleDriver.setUpdatedDate(LocalDateTime.now());
+            
+            vehicleDriverRepository.save(vehicleDriver);
+            
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("vehicleDriverId", vehicleDriverId);
+            responseData.put("isBackupDriver", isBackup);
+            responseData.put("driverName", vehicleDriver.getDriver().getDriverName());
+            responseData.put("vehicleNumber", vehicleDriver.getVehicle().getVehicleNumber());
+            
+            return new ApiResponse(true, "Backup driver status updated successfully", responseData);
+            
+        } catch (ResourceNotFoundException e) {
+            log.error("Resource not found: {}", e.getMessage());
+            return new ApiResponse(false, e.getMessage(), null);
+        } catch (Exception e) {
+            log.error("Error setting backup driver: {}", e.getMessage(), e);
+            return new ApiResponse(false, "Error updating backup driver status: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getDriverRotationSchedule(Integer ownerId) {
+        try {
+            log.info("Getting driver rotation schedule for owner: {}", ownerId);
+            
+            // Get all vehicle-driver assignments for this owner
+            List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByOwnerId(ownerId);
+            
+            // Group by vehicle
+            Map<Integer, List<VehicleDriver>> vehicleDriverMap = vehicleDrivers.stream()
+                    .collect(Collectors.groupingBy(vd -> vd.getVehicle().getVehicleId()));
+            
+            List<Map<String, Object>> rotationSchedule = new ArrayList<>();
+            
+            for (Map.Entry<Integer, List<VehicleDriver>> entry : vehicleDriverMap.entrySet()) {
+                Vehicle vehicle = entry.getValue().get(0).getVehicle();
+                List<VehicleDriver> drivers = entry.getValue();
+                
+                Map<String, Object> vehicleSchedule = new HashMap<>();
+                vehicleSchedule.put("vehicleId", vehicle.getVehicleId());
+                vehicleSchedule.put("vehicleNumber", vehicle.getVehicleNumber());
+                vehicleSchedule.put("vehicleType", vehicle.getVehicleType().toString());
+                
+                // Separate primary and backup drivers
+                List<Map<String, Object>> primaryDrivers = new ArrayList<>();
+                List<Map<String, Object>> backupDrivers = new ArrayList<>();
+                
+                for (VehicleDriver vd : drivers) {
+                    Map<String, Object> driverInfo = new HashMap<>();
+                    driverInfo.put("vehicleDriverId", vd.getVehicleDriverId());
+                    driverInfo.put("driverId", vd.getDriver().getDriverId());
+                    driverInfo.put("driverName", vd.getDriver().getDriverName());
+                    driverInfo.put("driverContact", vd.getDriver().getDriverContactNumber());
+                    driverInfo.put("isAvailable", vd.getIsAvailable());
+                    driverInfo.put("unavailabilityReason", vd.getUnavailabilityReason());
+                    driverInfo.put("isActivated", vd.getDriver().getUser() != null);
+                    driverInfo.put("startDate", vd.getStartDate());
+                    driverInfo.put("endDate", vd.getEndDate());
+                    
+                    if (Boolean.TRUE.equals(vd.getIsBackupDriver())) {
+                        backupDrivers.add(driverInfo);
+                    } else {
+                        primaryDrivers.add(driverInfo);
+                    }
+                }
+                
+                vehicleSchedule.put("primaryDrivers", primaryDrivers);
+                vehicleSchedule.put("backupDrivers", backupDrivers);
+                vehicleSchedule.put("totalDrivers", drivers.size());
+                vehicleSchedule.put("availableDrivers", drivers.stream()
+                        .mapToInt(vd -> Boolean.TRUE.equals(vd.getIsAvailable()) ? 1 : 0)
+                        .sum());
+                
+                rotationSchedule.add(vehicleSchedule);
+            }
+            
+            return new ApiResponse(true, "Driver rotation schedule retrieved successfully", rotationSchedule);
+            
+        } catch (Exception e) {
+            log.error("Error getting driver rotation schedule for owner {}: {}", ownerId, e.getMessage(), e);
+            return new ApiResponse(false, "Error retrieving driver rotation schedule: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse reassignTripDriver(Integer tripId, Integer newDriverId, String updatedBy) {
+        try {
+            log.info("Reassigning trip {} to driver {} by {}", tripId, newDriverId, updatedBy);
+            
+            // Get trip
+            Trip trip = tripRepository.findById(tripId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Trip not found with ID: " + tripId));
+            
+            // Get new driver
+            Driver newDriver = driverRepository.findById(newDriverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + newDriverId));
+            
+            // Verify driver is activated
+            if (newDriver.getUser() == null) {
+                return new ApiResponse(false, "Cannot assign trip to driver. Driver must complete user activation first.", null);
+            }
+            
+            // Verify driver is assigned to the same vehicle as the trip
+            List<VehicleDriver> vehicleDrivers = vehicleDriverRepository
+                    .findByVehicleAndIsActiveTrue(trip.getVehicle());
+            
+            boolean driverAssignedToVehicle = vehicleDrivers.stream()
+                    .anyMatch(vd -> vd.getDriver().getDriverId().equals(newDriverId));
+            
+            if (!driverAssignedToVehicle) {
+                return new ApiResponse(false, "Driver is not assigned to the trip's vehicle", null);
+            }
+            
+            // Update trip with new driver
+            trip.setDriver(newDriver);
+            trip.setUpdatedBy(updatedBy);
+            trip.setUpdatedDate(LocalDateTime.now());
+            
+            tripRepository.save(trip);
+            
+            // Map to response
+            Map<String, Object> responseData = mapTripToResponse(trip);
+            
+            return new ApiResponse(true, "Trip driver reassigned successfully", responseData);
+            
+        } catch (ResourceNotFoundException e) {
+            log.error("Resource not found: {}", e.getMessage());
+            return new ApiResponse(false, e.getMessage(), null);
+        } catch (Exception e) {
+            log.error("Error reassigning trip driver: {}", e.getMessage(), e);
+            return new ApiResponse(false, "Error reassigning trip driver: " + e.getMessage(), null);
         }
     }
 }

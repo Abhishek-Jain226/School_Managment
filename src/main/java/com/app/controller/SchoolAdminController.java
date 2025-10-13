@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 import com.app.payload.request.SchoolUserRequestDto;
 import com.app.payload.request.StaffCreateRequestDto;
 import com.app.payload.request.UserRequestDto;
@@ -25,7 +27,7 @@ public class SchoolAdminController {
     private ISchoolAdminService schoolAdminService;
 
     @PostMapping("/create-super-admin")
-    public ResponseEntity<ApiResponse> createSuperAdmin(@RequestBody UserRequestDto request) {
+    public ResponseEntity<ApiResponse> createSuperAdmin(@Valid @RequestBody UserRequestDto request) {
         return ResponseEntity.ok(schoolAdminService.createSuperAdmin(request));
     }
 
@@ -37,12 +39,12 @@ public class SchoolAdminController {
     @PutMapping("/update-profile/{userId}")
     public ResponseEntity<ApiResponse> updateProfile(
             @PathVariable Integer userId,
-            @RequestBody UserRequestDto request) {
+            @Valid @RequestBody UserRequestDto request) {
         return ResponseEntity.ok(schoolAdminService.updateProfile(userId, request));
     }
 
     @PostMapping("/assign-staff")
-    public ResponseEntity<ApiResponse> assignStaff(@RequestBody SchoolUserRequestDto request) {
+    public ResponseEntity<ApiResponse> assignStaff(@Valid @RequestBody SchoolUserRequestDto request) {
         return ResponseEntity.ok(schoolAdminService.assignStaffToSchool(request));
     }
 
@@ -52,7 +54,7 @@ public class SchoolAdminController {
     }
     
     @PostMapping("/create-staff")
-    public ResponseEntity<ApiResponse> createStaff(@RequestBody StaffCreateRequestDto request) {
+    public ResponseEntity<ApiResponse> createStaff(@Valid @RequestBody StaffCreateRequestDto request) {
         return ResponseEntity.ok(schoolAdminService.createStaffAndAssign(request));
     }
     
@@ -101,4 +103,5 @@ public class SchoolAdminController {
     public ResponseEntity<ApiResponse> getAllUsersBySchool(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(schoolAdminService.getAllUsersBySchool(schoolId));
     }
+    
 }

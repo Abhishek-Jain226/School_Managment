@@ -15,4 +15,10 @@ public interface ITripService {
 
 	ApiResponse getAllTrips(Integer schoolId);
 
+	ApiResponse getTripsByDriver(Integer driverId);
+
+	ApiResponse getTodayTripsByDriver(Integer driverId);
+
+	ApiResponse getTripStatusHistory(Integer tripId);
+
 }

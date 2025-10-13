@@ -7,6 +7,7 @@ import com.app.service.IVehicleDriverService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/vehicle-drivers")
@@ -17,7 +18,7 @@ public class VehicleDriverController {
 
     // ----------- Assign Driver To Vehicle -----------
     @PostMapping("/assign")
-    public ResponseEntity<ApiResponse> assignDriverToVehicle(@RequestBody VehicleDriverRequestDto request) {
+    public ResponseEntity<ApiResponse> assignDriverToVehicle(@Valid @RequestBody VehicleDriverRequestDto request) {
         return ResponseEntity.ok(vehicleDriverService.assignDriverToVehicle(request));
     }
 

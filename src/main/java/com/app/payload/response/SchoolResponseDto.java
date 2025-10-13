@@ -1,5 +1,6 @@
 package com.app.payload.response;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import lombok.AllArgsConstructor;
@@ -28,6 +29,8 @@ public class SchoolResponseDto {
 	private String email;
 	private String schoolPhoto;
 	private Boolean isActive;
+	private LocalDate startDate;
+	private LocalDate endDate;
 	private String createdBy;
 	private LocalDateTime createdDate;
 	private String updatedBy;

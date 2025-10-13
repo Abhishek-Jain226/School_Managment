@@ -58,6 +58,13 @@ public class VehicleDriverServiceImpl implements IVehicleDriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + request.getDriverId()));
         System.out.println("🔍 assignDriverToVehicle: driver found = " + driver.getDriverName());
 
+        // Validate that the driver has user credentials (is activated)
+        if (driver.getUser() == null) {
+            System.out.println("🔍 assignDriverToVehicle: ERROR - Driver has not completed user activation");
+            return new ApiResponse(false, "Cannot assign vehicle to driver. Driver must complete user activation first.", null);
+        }
+        System.out.println("🔍 assignDriverToVehicle: driver is activated with user ID = " + driver.getUser().getUId());
+
         School school = schoolRepository.findById(request.getSchoolId())
                 .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + request.getSchoolId()));
         System.out.println("🔍 assignDriverToVehicle: school found = " + school.getSchoolName());

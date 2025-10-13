@@ -1,5 +1,6 @@
 package com.app.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -71,6 +72,12 @@ public class School {
 
 	@Column(name = "is_active", nullable = false)
 	private Boolean isActive;
+
+	@Column(name = "start_date")
+	private LocalDate startDate;
+
+	@Column(name = "end_date")
+	private LocalDate endDate;
 
 	@Column(name = "created_by", length = 50)
 	private String createdBy;

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.app.entity.DispatchLog;
 import com.app.entity.Role;
 import com.app.entity.School;
+import com.app.entity.SchoolUser;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.SchoolRequestDto;
 import com.app.payload.response.ApiResponse;
@@ -20,7 +21,9 @@ import com.app.payload.response.SchoolResponseDto;
 import com.app.repository.DispatchLogRepository;
 import com.app.repository.RoleRepository;
 import com.app.repository.SchoolRepository;
+import com.app.repository.SchoolUserRepository;
 import com.app.repository.StudentRepository;
+import com.app.repository.UserRepository;
 import com.app.service.IPendingUserService;
 import com.app.service.ISchoolService;
 import com.app.Enum.EventType;
@@ -42,6 +45,12 @@ public class SchoolServiceImpl implements ISchoolService {
     
     @Autowired
     private StudentRepository studentRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private SchoolUserRepository schoolUserRepository;
 
     @Override
     public ApiResponse registerSchool(SchoolRequestDto request) {
@@ -73,6 +82,8 @@ public class SchoolServiceImpl implements ISchoolService {
                 .email(request.getEmail())
                 .schoolPhoto(request.getSchoolPhoto())
                 .isActive(false) // new school inactive by default
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .createdBy(request.getCreatedBy())
                 .createdDate(LocalDateTime.now())
                 .build();
@@ -163,6 +174,8 @@ public class SchoolServiceImpl implements ISchoolService {
         school.setContactNo(request.getContactNo());
         school.setEmail(request.getEmail());
         school.setSchoolPhoto(request.getSchoolPhoto());
+        school.setStartDate(request.getStartDate());
+        school.setEndDate(request.getEndDate());
         school.setUpdatedBy(request.getUpdatedBy());
         school.setUpdatedDate(LocalDateTime.now());
 
@@ -216,6 +229,8 @@ public class SchoolServiceImpl implements ISchoolService {
                 .email(school.getEmail())
                 .schoolPhoto(school.getSchoolPhoto())
                 .isActive(school.getIsActive())
+                .startDate(school.getStartDate())
+                .endDate(school.getEndDate())
                 .createdBy(school.getCreatedBy())
                 .createdDate(school.getCreatedDate())
                 .updatedBy(school.getUpdatedBy())
@@ -295,6 +310,108 @@ public class SchoolServiceImpl implements ISchoolService {
             
         } catch (Exception e) {
             return new ApiResponse(false, "Error retrieving today's attendance: " + e.getMessage(), null);
+        }
+    }
+
+//    @Override
+//    public ApiResponse getAllStaffBySchool(Integer schoolId) {
+//        try {
+//            // Validate school exists
+//            School school = schoolRepository.findById(schoolId)
+//                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+//
+//            // Get all users associated with this school through SchoolUser
+//            List<SchoolUser> schoolUsers = school.getSchoolUsers();
+//            
+//            List<Map<String, Object>> staffList = schoolUsers.stream()
+//                .filter(schoolUser -> {
+//                    // Filter for staff roles (TEACHER, GATE_STAFF, DRIVER)
+//                    return schoolUser.getUser().getUserRoles().stream()
+//                        .anyMatch(userRole -> {
+//                            String roleName = userRole.getRole().getRoleName();
+//                            return "TEACHER".equals(roleName) || 
+//                                   "GATE_STAFF".equals(roleName) || 
+//                                   "DRIVER".equals(roleName);
+//                        });
+//                })
+//                .map(schoolUser -> {
+//                    Map<String, Object> staffData = new HashMap<>();
+//                    com.app.entity.User user = schoolUser.getUser();
+//                    
+//                    // Get primary role
+//                    String primaryRole = user.getUserRoles().stream()
+//                        .filter(userRole -> {
+//                            String roleName = userRole.getRole().getRoleName();
+//                            return "TEACHER".equals(roleName) || 
+//                                   "GATE_STAFF".equals(roleName) || 
+//                                   "DRIVER".equals(roleName);
+//                        })
+//                        .map(userRole -> userRole.getRole().getRoleName())
+//                        .findFirst()
+//                        .orElse("UNKNOWN");
+//                    
+//                    staffData.put("staffId", user.getUId());
+//                    staffData.put("name", user.getUserName());
+//                    staffData.put("email", user.getEmail());
+//                    staffData.put("contactNo", user.getContactNumber());
+//                    staffData.put("role", primaryRole);
+//                    staffData.put("isActive", user.getIsActive());
+//                    staffData.put("joinDate", user.getCreatedDate());
+//                    
+//                    return staffData;
+//                })
+//                .collect(Collectors.toList());
+//
+//            Map<String, Object> responseData = new HashMap<>();
+//            responseData.put("staffList", staffList);
+//            responseData.put("totalCount", staffList.size());
+//            responseData.put("activeCount", (int) staffList.stream().filter(staff -> (Boolean) staff.get("isActive")).count());
+//
+//            return new ApiResponse(true, "Staff list retrieved successfully", responseData);
+//            
+//        } catch (Exception e) {
+//            return new ApiResponse(false, "Error retrieving staff list: " + e.getMessage(), null);
+//        }
+//    }
+
+    @Override
+    public ApiResponse updateStaffStatus(Integer staffId, Boolean isActive, String updatedBy) {
+        try {
+            // Find user by staffId (which is actually userId)
+            com.app.entity.User user = userRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            user.setIsActive(isActive);
+            user.setUpdatedBy(updatedBy);
+            user.setUpdatedDate(LocalDateTime.now());
+            
+            userRepository.save(user);
+
+            return new ApiResponse(true, "Staff status updated successfully", null);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error updating staff status: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse deleteStaff(Integer staffId, String deletedBy) {
+        try {
+            // Find user by staffId (which is actually userId)
+            com.app.entity.User user = userRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            // Soft delete by setting isActive to false
+            user.setIsActive(false);
+            user.setUpdatedBy(deletedBy);
+            user.setUpdatedDate(LocalDateTime.now());
+            
+            userRepository.save(user);
+
+            return new ApiResponse(true, "Staff deleted successfully", null);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error deleting staff: " + e.getMessage(), null);
         }
     }
 }

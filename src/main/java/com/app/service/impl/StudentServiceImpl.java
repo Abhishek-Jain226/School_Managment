@@ -6,16 +6,19 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.app.entity.ClassMaster;
 import com.app.entity.Role;
 import com.app.entity.School;
+import com.app.entity.SchoolUser;
 import com.app.entity.SectionMaster;
 import com.app.entity.Student;
 import com.app.entity.StudentParent;
 import com.app.entity.Trip;
 import com.app.entity.User;
+import com.app.entity.UserRole;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.PendingUserRequestDTO;
 import com.app.payload.request.StudentRequestDto;
@@ -24,11 +27,13 @@ import com.app.payload.response.StudentResponseDto;
 import com.app.repository.ClassMasterRepository;
 import com.app.repository.RoleRepository;
 import com.app.repository.SchoolRepository;
+import com.app.repository.SchoolUserRepository;
 import com.app.repository.SectionMasterRepository;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.StudentRepository;
 import com.app.repository.TripRepository;
 import com.app.repository.UserRepository;
+import com.app.repository.UserRoleRepository;
 import com.app.service.IPendingUserService;
 import com.app.service.IStudentService;
 
@@ -61,6 +66,15 @@ public class StudentServiceImpl implements IStudentService {
     
     @Autowired
     private SectionMasterRepository sectionMasterRepository;
+    
+    @Autowired
+    private SchoolUserRepository schoolUserRepository;
+    
+    @Autowired
+    private UserRoleRepository userRoleRepository;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public ApiResponse createStudent(StudentRequestDto request) {
@@ -142,6 +156,9 @@ public class StudentServiceImpl implements IStudentService {
                 .build();
 
         pendingUserService.createPendingUser(pendingReq);
+
+        // 6. Note: SchoolUser entry will be created when parent activates account
+        // This ensures proper User account exists before creating SchoolUser relationship
 
         return new ApiResponse(true,
                 "Student registered successfully. Parent activation link sent to email.",

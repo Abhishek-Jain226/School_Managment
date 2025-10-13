@@ -1,5 +1,6 @@
 package com.app.payload.response;
 
+import com.app.Enum.TripType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,9 +19,12 @@ public class TripResponseDto {
     private Integer tripId;
     private String tripName;
     private Integer tripNumber;
-    private String tripType; // MORNING, AFTERNOON
+    private TripType tripType;
+    private String tripTypeDisplay; // Display name for frontend
     private LocalTime scheduledTime;
     private Integer estimatedDurationMinutes;
+    private String routeName;
+    private String routeDescription;
     private Boolean isActive;
     
     // Vehicle Information

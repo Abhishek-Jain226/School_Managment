@@ -1,5 +1,7 @@
 package com.app.payload.request;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -62,6 +64,10 @@ public class SchoolRequestDto {
 	private String schoolPhoto; // base64 or URL
 
 	private Boolean isActive = true;
+
+	private LocalDate startDate;
+
+	private LocalDate endDate;
 
 	@NotBlank(message = "CreatedBy is required")
 	@Size(max = 50, message = "CreatedBy must not exceed 50 characters")

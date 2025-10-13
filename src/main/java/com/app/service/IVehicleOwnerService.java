@@ -31,5 +31,26 @@ public interface IVehicleOwnerService {
 
 	ApiResponse getRecentActivityByOwner(Integer ownerId);
 
+	ApiResponse getDriverAssignments(Integer ownerId);
+
+	ApiResponse getTotalAssignmentsByOwner(Integer ownerId);
+
+	ApiResponse getPendingDriverRegistrations(Integer ownerId);
+
+	// Trip Assignment Methods
+	ApiResponse getTripsByOwner(Integer ownerId);
+	
+	ApiResponse getAvailableVehiclesForTrip(Integer ownerId, Integer schoolId);
+	
+	ApiResponse assignTripToVehicle(Integer tripId, Integer vehicleId, String updatedBy);
+
+	// Enhanced Driver Management Methods
+	ApiResponse setDriverAvailability(Integer vehicleDriverId, Boolean isAvailable, String reason, String updatedBy);
+	
+	ApiResponse setBackupDriver(Integer vehicleDriverId, Boolean isBackup, String updatedBy);
+	
+	ApiResponse getDriverRotationSchedule(Integer ownerId);
+	
+	ApiResponse reassignTripDriver(Integer tripId, Integer newDriverId, String updatedBy);
 
 }

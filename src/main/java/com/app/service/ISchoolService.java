@@ -23,4 +23,10 @@ public interface ISchoolService {
 
 	ApiResponse getTodayAttendance(Integer schoolId);
 
+	//ApiResponse getAllStaffBySchool(Integer schoolId);
+
+	ApiResponse updateStaffStatus(Integer staffId, Boolean isActive, String updatedBy);
+
+	ApiResponse deleteStaff(Integer staffId, String deletedBy);
+
 }

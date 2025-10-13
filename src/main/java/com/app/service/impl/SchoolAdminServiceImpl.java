@@ -15,6 +15,7 @@ import com.app.entity.Role;
 import com.app.entity.School;
 import com.app.entity.SchoolUser;
 import com.app.entity.User;
+import com.app.entity.UserRole;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.LoginRequestDTO;
 import com.app.payload.request.SchoolUserRequestDto;
@@ -26,6 +27,7 @@ import com.app.repository.RoleRepository;
 import com.app.repository.SchoolRepository;
 import com.app.repository.SchoolUserRepository;
 import com.app.repository.UserRepository;
+import com.app.repository.UserRoleRepository;
 import com.app.service.ISchoolAdminService;
 
 
@@ -43,7 +45,10 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
 	@Autowired
     private SchoolUserRepository schoolUserRepository;
 	@Autowired
+    private UserRoleRepository userRoleRepository;
+	@Autowired
 	private PasswordEncoder passwordEncoder;
+	
 
     @Override
     public ApiResponse createSuperAdmin(UserRequestDto request) {
@@ -68,6 +73,17 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
         // Assign SUPER_ADMIN role
         Role role = roleRepository.findByRoleName("SUPER_ADMIN")
                 .orElseThrow(() -> new ResourceNotFoundException("Role SUPER_ADMIN not found"));
+
+        // Create UserRole mapping (user -> role)
+        UserRole userRole = UserRole.builder()
+                .user(saved)
+                .role(role)
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
+                .build();
+        
+        userRoleRepository.save(userRole);
 
         SchoolUser schoolUser = SchoolUser.builder()
                 .user(saved)
@@ -130,6 +146,17 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
 
         Role role = roleRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with ID: " + request.getRoleId()));
+
+        // Create UserRole mapping (user -> role)
+        UserRole userRole = UserRole.builder()
+                .user(user)
+                .role(role)
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
+                .build();
+        
+        userRoleRepository.save(userRole);
 
         SchoolUser schoolUser = SchoolUser.builder()
                 .user(user)
@@ -203,7 +230,18 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
 
         User saved = userRepository.save(user);
 
-        // 5) create SchoolUser mapping (user -> school -> role)
+        // 5) create UserRole mapping (user -> role)
+        UserRole userRole = UserRole.builder()
+                .user(saved)
+                .role(role)
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
+                .build();
+        
+        userRoleRepository.save(userRole);
+
+        // 6) create SchoolUser mapping (user -> school -> role)
         SchoolUser schoolUser = SchoolUser.builder()
                 .user(saved)
                 .school(school)
@@ -215,7 +253,7 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
 
         schoolUserRepository.save(schoolUser);
 
-        // 6) return created user summary
+        // 7) return created user summary
         return new ApiResponse(true, "Staff created and assigned successfully", mapToResponse(saved));
     }
 
@@ -261,6 +299,18 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
             SchoolUser schoolUser = schoolUserRepository.findById(staffId)
                     .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
 
+            // Update UserRole table
+            List<UserRole> userRoles = userRoleRepository.findByUser(schoolUser.getUser());
+            for (UserRole userRole : userRoles) {
+                if (userRole.getRole().getRoleId().equals(schoolUser.getRole().getRoleId())) {
+                    userRole.setIsActive(isActive);
+                    userRole.setUpdatedBy(updatedBy);
+                    userRole.setUpdatedDate(LocalDateTime.now());
+                    userRoleRepository.save(userRole);
+                    break;
+                }
+            }
+
             schoolUser.setIsActive(isActive);
             schoolUser.setUpdatedBy(updatedBy);
             schoolUser.setUpdatedDate(LocalDateTime.now());
@@ -281,6 +331,18 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
         try {
             SchoolUser schoolUser = schoolUserRepository.findById(staffId)
                     .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            // Update UserRole table
+            List<UserRole> userRoles = userRoleRepository.findByUser(schoolUser.getUser());
+            for (UserRole userRole : userRoles) {
+                if (userRole.getRole().getRoleId().equals(schoolUser.getRole().getRoleId())) {
+                    userRole.setIsActive(false);
+                    userRole.setUpdatedBy(updatedBy);
+                    userRole.setUpdatedDate(LocalDateTime.now());
+                    userRoleRepository.save(userRole);
+                    break;
+                }
+            }
 
             // Soft delete - mark as inactive instead of hard delete
             schoolUser.setIsActive(false);
@@ -359,7 +421,19 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
             Role newRole = roleRepository.findById(newRoleId)
                     .orElseThrow(() -> new ResourceNotFoundException("Role not found with ID: " + newRoleId));
 
-            // Update the role
+            // Update UserRole table
+            List<UserRole> userRoles = userRoleRepository.findByUser(schoolUser.getUser());
+            for (UserRole userRole : userRoles) {
+                if (userRole.getRole().getRoleId().equals(schoolUser.getRole().getRoleId())) {
+                    userRole.setRole(newRole);
+                    userRole.setUpdatedBy(updatedBy);
+                    userRole.setUpdatedDate(LocalDateTime.now());
+                    userRoleRepository.save(userRole);
+                    break;
+                }
+            }
+
+            // Update the role in SchoolUser
             schoolUser.setRole(newRole);
             schoolUser.setUpdatedBy(updatedBy);
             schoolUser.setUpdatedDate(LocalDateTime.now());
@@ -406,4 +480,5 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
             return new ApiResponse(false, "Error fetching all users: " + e.getMessage(), null);
         }
     }
+    
 }

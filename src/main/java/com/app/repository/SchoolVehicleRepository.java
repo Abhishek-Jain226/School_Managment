@@ -26,5 +26,11 @@ public interface SchoolVehicleRepository extends JpaRepository<SchoolVehicle, In
     
     // Find mapping by school and vehicle IDs
     java.util.Optional<SchoolVehicle> findBySchool_SchoolIdAndVehicle_VehicleId(Integer schoolId, Integer vehicleId);
+    
+    // Find vehicles by owner and school
+    List<SchoolVehicle> findByOwner_OwnerIdAndSchool_SchoolId(Integer ownerId, Integer schoolId);
+    
+    // Find mapping by vehicle and school IDs
+    java.util.Optional<SchoolVehicle> findByVehicle_VehicleIdAndSchool_SchoolId(Integer vehicleId, Integer schoolId);
 
 }

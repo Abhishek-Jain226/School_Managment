@@ -34,4 +34,14 @@ public interface TripRepository extends JpaRepository<Trip, Integer> {
 	// Find trips by driver and status
 	List<Trip> findByDriverAndTripStatus(Driver driver, String tripStatus);
 
+	// Find trips by driver ID
+	List<Trip> findByDriver_DriverId(Integer driverId);
+
+	// Find today's trips by driver ID
+	@Query("SELECT t FROM Trip t WHERE t.driver.driverId = :driverId AND DATE(t.createdDate) = :date")
+	List<Trip> findByDriver_DriverIdAndDate(Integer driverId, LocalDate date);
+
+	// Find trips by vehicle IDs (for vehicle owner)
+	List<Trip> findByVehicleVehicleIdIn(List<Integer> vehicleIds);
+
 }

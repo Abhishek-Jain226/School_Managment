@@ -26,4 +26,8 @@ public interface TripStatusRepository extends JpaRepository<TripStatus, Integer>
     // Find trips by status
     @Query("SELECT ts FROM TripStatus ts WHERE ts.status = :status ORDER BY ts.statusTime DESC")
     List<TripStatus> findByStatusOrderByStatusTimeDesc(TripStatus.TripStatusType status);
+
+    // Find trip statuses by trip and status
+    @Query("SELECT ts FROM TripStatus ts WHERE ts.trip = :trip AND ts.status = :status ORDER BY ts.statusTime DESC")
+    List<TripStatus> findByTripAndStatusOrderByStatusTimeDesc(Trip trip, TripStatus.TripStatusType status);
 }

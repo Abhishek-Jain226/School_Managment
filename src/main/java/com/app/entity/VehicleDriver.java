@@ -44,6 +44,11 @@ public class VehicleDriver {
 
     private Boolean isPrimary;
     private Boolean isActive;
+    
+    // Driver rotation and availability
+    private Boolean isBackupDriver = false;
+    private Boolean isAvailable = true;
+    private String unavailabilityReason;
 
     private String createdBy;
     private LocalDateTime createdDate;

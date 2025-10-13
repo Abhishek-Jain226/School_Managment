@@ -68,10 +68,10 @@ public class DriverController {
 		return ResponseEntity.ok(driverService.startTrip(driverId, tripId));
 	}
 
-	// ----------- End Trip -----------
-	@PostMapping("/{driverId}/trip/{tripId}/end")
-	public ResponseEntity<ApiResponse> endTrip(@PathVariable Integer driverId, @PathVariable Integer tripId) {
-		return ResponseEntity.ok(driverService.endTrip(driverId, tripId));
-	}
+    // ----------- End Trip -----------
+    @PostMapping("/{driverId}/trip/{tripId}/end")
+    public ResponseEntity<ApiResponse> endTrip(@PathVariable Integer driverId, @PathVariable Integer tripId) {
+        return ResponseEntity.ok(driverService.endTrip(driverId, tripId));
+    }
 
 }

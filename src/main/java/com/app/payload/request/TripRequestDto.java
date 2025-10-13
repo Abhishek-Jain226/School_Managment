@@ -1,5 +1,6 @@
 package com.app.payload.request;
 
+import com.app.Enum.TripType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,21 +30,16 @@ public class TripRequestDto {
 	@Positive(message = "Trip number must be positive")
 	private Integer tripNumber;
 
-	@NotBlank(message = "Trip type is required")
-	@Size(max = 50, message = "Trip type cannot exceed 50 characters")
-	private String tripType; // MORNING_PICKUP, AFTERNOON_DROP, etc.
+	@NotNull(message = "Trip type is required")
+	private TripType tripType;
 
+	@NotBlank(message = "Route name is required")
 	@Size(max = 200, message = "Route name cannot exceed 200 characters")
-	private String routeName; // Route name or description
+	private String routeName;
 
-	@Size(max = 100, message = "Start time cannot exceed 100 characters")
-	private String startTime; // Trip start time
-
-	@Size(max = 100, message = "End time cannot exceed 100 characters")
-	private String endTime; // Trip end time
-
+	@NotBlank(message = "Route description is required")
 	@Size(max = 500, message = "Route description cannot exceed 500 characters")
-	private String routeDescription; // Detailed route information
+	private String routeDescription;
 
 	private Boolean isActive = true;
 

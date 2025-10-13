@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/pending-users")
 public class PendingUserController {
@@ -17,7 +19,7 @@ public class PendingUserController {
 
     // ----------- Create Pending User -----------
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse> createPendingUser(@RequestBody PendingUserRequestDTO request) {
+    public ResponseEntity<ApiResponse> createPendingUser(@Valid @RequestBody PendingUserRequestDTO request) {
         return ResponseEntity.ok(pendingUserService.createPendingUser(request));
     }
 

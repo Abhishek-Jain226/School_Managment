@@ -19,6 +19,8 @@ public interface IDriverService {
 
 	ApiResponse getAllDrivers(Integer ownerId);
 
+	ApiResponse getAllDriversForAdmin();
+
 	// Driver Dashboard Methods
 	ApiResponse getDriverDashboard(Integer driverId);
 

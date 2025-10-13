@@ -74,6 +74,7 @@ public class PendingUserServiceImpl implements IPendingUserService {
 	
 	@Value("${app.frontend.activation-url}")
 	private String activationBaseUrl;
+	
 
     // ---------------- Create ----------------
     @Override
@@ -235,18 +236,21 @@ public class PendingUserServiceImpl implements IPendingUserService {
 
         User savedUser = userRepository.save(user);
 
-        // 2. Assign Role
-        UserRole userRole = UserRole.builder()
-                .user(savedUser)
-                .role(pending.getRole())
-                .isActive(true)
-                .createdBy("system")
-                .createdDate(LocalDateTime.now())
-                .build();
-        userRoleRepository.save(userRole);
+        // 2. Assign Role (will be done in entity-specific sections)
+        // UserRole creation moved to entity-specific sections to avoid duplicates
 
         // 3. Entity specific linking
         if ("SCHOOL".equalsIgnoreCase(pending.getEntityType())) {
+            // Create UserRole for SCHOOL entity
+            UserRole userRole = UserRole.builder()
+                    .user(savedUser)
+                    .role(pending.getRole())
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            userRoleRepository.save(userRole);
+            
             // link SchoolUser
             School school = schoolRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("School not found"));
@@ -261,6 +265,16 @@ public class PendingUserServiceImpl implements IPendingUserService {
             schoolUserRepository.save(schoolUser);
 
         } else if ("PARENT".equalsIgnoreCase(pending.getEntityType())) {
+            // Create UserRole for PARENT entity
+            UserRole userRole = UserRole.builder()
+                    .user(savedUser)
+                    .role(pending.getRole())
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            userRoleRepository.save(userRole);
+            
             // link StudentParent
             StudentParent sp = studentParentRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("StudentParent mapping not found"));
@@ -269,9 +283,39 @@ public class PendingUserServiceImpl implements IPendingUserService {
             sp.setUpdatedBy("system");
             sp.setUpdatedDate(LocalDateTime.now());
             studentParentRepository.save(sp);
+            
+            // ✅ Create SchoolUser entry for student when parent activates
+            // Get student's school from StudentParent relationship
+            School studentSchool = sp.getStudent().getSchool();
+            
+            // Get STUDENT role (if exists) or use PARENT role as fallback
+            Role studentRole = roleRepository.findByRoleName("STUDENT")
+                    .orElse(pending.getRole()); // Fallback to PARENT role if STUDENT role doesn't exist
+            
+            // Create SchoolUser entry for student
+            SchoolUser studentSchoolUser = SchoolUser.builder()
+                    .user(savedUser) // Link to parent's User account (student will use parent's account)
+                    .school(studentSchool)
+                    .role(studentRole)
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            
+            schoolUserRepository.save(studentSchoolUser);
         }
         
         else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {
+            // Create UserRole for VEHICLE_OWNER entity
+            UserRole userRole = UserRole.builder()
+                    .user(savedUser)
+                    .role(pending.getRole())
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            userRoleRepository.save(userRole);
+            
             VehicleOwner owner = vehicleOwnerRepository.findById(pending.getEntityId().intValue())
                     .orElseThrow(() -> new ResourceNotFoundException("VehicleOwner not found"));
 
@@ -317,6 +361,17 @@ public class PendingUserServiceImpl implements IPendingUserService {
             driver.setUpdatedBy("system");
             driver.setUpdatedDate(LocalDateTime.now());
             driverRepository.save(driver);
+            
+            // ✅ Create UserRole entry for DRIVER role
+            UserRole driverUserRole = UserRole.builder()
+                    .user(savedUser)
+                    .role(pending.getRole()) // DRIVER role (ID = 4)
+                    .isActive(true)
+                    .createdBy("system")
+                    .createdDate(LocalDateTime.now())
+                    .build();
+            
+            userRoleRepository.save(driverUserRole);
         }
 
         // 4. Mark token used

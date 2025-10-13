@@ -74,4 +74,27 @@ public class SchoolController {
     public ResponseEntity<ApiResponse> getTodayAttendance(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(schoolService.getTodayAttendance(schoolId));
     }
+
+    // ----------- Get All Staff by School -----------
+//    @GetMapping("/{schoolId}/staff")
+//    public ResponseEntity<ApiResponse> getAllStaffBySchool(@PathVariable Integer schoolId) {
+//        return ResponseEntity.ok(schoolService.getAllStaffBySchool(schoolId));
+//    }
+
+    // ----------- Update Staff Status -----------
+    @PutMapping("/staff/{staffId}/status")
+    public ResponseEntity<ApiResponse> updateStaffStatus(
+            @PathVariable Integer staffId,
+            @RequestParam Boolean isActive,
+            @RequestParam String updatedBy) {
+        return ResponseEntity.ok(schoolService.updateStaffStatus(staffId, isActive, updatedBy));
+    }
+
+    // ----------- Delete Staff -----------
+    @DeleteMapping("/staff/{staffId}")
+    public ResponseEntity<ApiResponse> deleteStaff(
+            @PathVariable Integer staffId,
+            @RequestParam String deletedBy) {
+        return ResponseEntity.ok(schoolService.deleteStaff(staffId, deletedBy));
+    }
 }

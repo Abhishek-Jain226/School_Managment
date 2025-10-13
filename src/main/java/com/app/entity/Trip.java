@@ -2,10 +2,15 @@ package com.app.entity;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+
+import com.app.Enum.TripType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -51,17 +56,24 @@ public class Trip {
 
 	private Integer tripNumber;
 
+	@Enumerated(EnumType.STRING)
 	@Column(name = "trip_type", length = 20)
-	private String tripType; // MORNING, AFTERNOON
+	private TripType tripType;
 
-	@Column(name = "scheduled_time")
+	@Column(name = "scheduled_time", nullable = true)
 	private LocalTime scheduledTime;
 
 	@Column(name = "estimated_duration_minutes")
 	private Integer estimatedDurationMinutes;
 
-	@Column(name = "trip_status", length = 20)
-	private String tripStatus = "NOT_STARTED"; // NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELLED
+	@Column(name = "trip_status", length = 20, nullable = true)
+	private String tripStatus; // Made nullable as requested
+
+	@Column(name = "route_name", length = 200)
+	private String routeName;
+
+	@Column(name = "route_description", length = 500)
+	private String routeDescription;
 
 	@Column(name = "trip_start_time")
 	private LocalDateTime tripStartTime;
@@ -88,6 +100,33 @@ public class Trip {
 	@PreUpdate
 	protected void onUpdate() {
 		updatedDate = LocalDateTime.now();
+		// Calculate estimated duration when trip times are updated
+		calculateEstimatedDuration();
+	}
+
+	/**
+	 * Calculates estimated duration in minutes based on trip start and end times
+	 */
+	public void calculateEstimatedDuration() {
+		if (tripStartTime != null && tripEndTime != null) {
+			this.estimatedDurationMinutes = (int) ChronoUnit.MINUTES.between(tripStartTime, tripEndTime);
+		}
+	}
+
+	/**
+	 * Sets trip start time and calculates duration if end time is also set
+	 */
+	public void setTripStartTime(LocalDateTime tripStartTime) {
+		this.tripStartTime = tripStartTime;
+		calculateEstimatedDuration();
+	}
+
+	/**
+	 * Sets trip end time and calculates duration if start time is also set
+	 */
+	public void setTripEndTime(LocalDateTime tripEndTime) {
+		this.tripEndTime = tripEndTime;
+		calculateEstimatedDuration();
 	}
 
 	@OneToMany(mappedBy = "trip")
