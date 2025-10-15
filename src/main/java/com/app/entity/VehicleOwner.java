@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -46,7 +47,9 @@ public class VehicleOwner {
     @Column(length = 20)
     private String contactNumber;
     
-  
+    @Lob
+    @Column(name = "owner_photo", columnDefinition = "LONGTEXT")
+    private String ownerPhoto;
 
     private String address;
 

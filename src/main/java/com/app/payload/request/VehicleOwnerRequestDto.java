@@ -27,6 +27,9 @@ public class VehicleOwnerRequestDto {
 	@Size(max = 150, message = "Email must not exceed 150 characters")
 	private String email;
 
+	@Size(max = 500, message = "Photo path cannot exceed 500 characters")
+	private String ownerPhoto;
+
 	@NotBlank(message = "Address is required")
 	@Size(min = 5, max = 255, message = "Address must be between 5 and 255 characters")
 	private String address;

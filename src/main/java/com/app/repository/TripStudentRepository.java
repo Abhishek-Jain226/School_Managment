@@ -10,5 +10,9 @@ import com.app.entity.TripStudent;
 public interface TripStudentRepository extends JpaRepository<TripStudent, Integer> {
 	
 	List<TripStudent> findByTrip(Trip trip);
+	
+	int countByTrip(Trip trip);
+	
+	int countByTripTripIdIn(List<Integer> tripIds);
 
 }

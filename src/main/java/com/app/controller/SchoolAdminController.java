@@ -1,5 +1,7 @@
 package com.app.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -96,6 +98,14 @@ public class SchoolAdminController {
             @RequestParam Integer newRoleId,
             @RequestParam String updatedBy) {
         return ResponseEntity.ok(schoolAdminService.updateStaffRole(staffId, newRoleId, updatedBy));
+    }
+    
+    // ----------- Update Staff Details -----------
+    @PutMapping("/staff/{staffId}")
+    public ResponseEntity<ApiResponse> updateStaffDetails(
+            @PathVariable Integer staffId,
+            @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(schoolAdminService.updateStaffDetails(staffId, request));
     }
     
     // ----------- Debug: Get All Users (Including PARENT) -----------

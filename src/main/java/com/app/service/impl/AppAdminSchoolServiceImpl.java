@@ -5,23 +5,44 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import com.app.entity.PendingUser;
 import com.app.entity.School;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.response.ApiResponse;
 import com.app.payload.response.SchoolResponseDto;
+import com.app.repository.PendingUserRepository;
 import com.app.repository.SchoolRepository;
+import com.app.repository.SchoolUserRepository;
 import com.app.service.IAppAdminSchoolService;
+
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 public class AppAdminSchoolServiceImpl implements IAppAdminSchoolService {
 
     @Autowired
     private SchoolRepository schoolRepository;
+    
+    @Autowired
+    private PendingUserRepository pendingUserRepository;
+    
+    @Autowired
+    private SchoolUserRepository schoolUserRepository;
+    
+    @Autowired
+    private JavaMailSender mailSender;
+    
+    @Value("${app.frontend.activation-url}")
+    private String activationBaseUrl;
 
     @Override
     public ApiResponse getAllSchools() {
@@ -184,10 +205,101 @@ public class AppAdminSchoolServiceImpl implements IAppAdminSchoolService {
         }
     }
 
+    @Override
+    public ApiResponse resendActivationLink(Integer schoolId, String updatedBy) {
+        try {
+            // Find the school
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Find pending users for this school that are not used
+            List<PendingUser> pendingUsers = pendingUserRepository
+                    .findByEntityTypeAndEntityIdAndIsUsedFalse("SCHOOL", schoolId.longValue());
+
+            if (pendingUsers.isEmpty()) {
+                return new ApiResponse(false, "No pending activation found for this school", null);
+            }
+
+            // Get the most recent pending user (should be only one for school)
+            PendingUser pendingUser = pendingUsers.get(0);
+
+            // Check if the current token is still valid (not expired)
+            if (pendingUser.getTokenExpiry().isAfter(LocalDateTime.now())) {
+                // Token is still valid, just resend the email
+                String activationUrl = activationBaseUrl + "?token=" + pendingUser.getToken();
+                sendActivationEmail(pendingUser.getEmail(), activationUrl, school.getSchoolName());
+                
+                return new ApiResponse(true, 
+                        "Activation link resent successfully to " + pendingUser.getEmail(), 
+                        Map.of("email", pendingUser.getEmail(), "expiresAt", pendingUser.getTokenExpiry()));
+            } else {
+                // Token is expired, generate new token
+                pendingUser.setToken(UUID.randomUUID().toString());
+                pendingUser.setTokenExpiry(LocalDateTime.now().plusDays(1)); // 24 hours from now
+                pendingUser.setUpdatedBy(updatedBy);
+                pendingUser.setUpdatedDate(LocalDateTime.now());
+                
+                PendingUser updatedPendingUser = pendingUserRepository.save(pendingUser);
+                
+                String activationUrl = activationBaseUrl + "?token=" + updatedPendingUser.getToken();
+                sendActivationEmail(updatedPendingUser.getEmail(), activationUrl, school.getSchoolName());
+                
+                return new ApiResponse(true, 
+                        "New activation link generated and sent to " + updatedPendingUser.getEmail(), 
+                        Map.of("email", updatedPendingUser.getEmail(), "expiresAt", updatedPendingUser.getTokenExpiry()));
+            }
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error resending activation link: " + e.getMessage(), null);
+        }
+    }
+
+    private void sendActivationEmail(String to, String activationUrl, String schoolName) {
+        try {
+            MimeMessage msg = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(msg, true);
+
+            String html = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background-color: #1E3A8A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h2 style="margin: 0;">Welcome to Kids Vehicle Tracking System</h2>
+                    </div>
+                    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px;">
+                        <p style="font-size: 16px; color: #333;">Thank you for registering %s with us!</p>
+                        <p style="color: #666;">To complete your registration and activate your school admin account, please click the button below:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="%s" style="background-color: #1E3A8A; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Activate Account</a>
+                        </div>
+                        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                            <p style="margin: 0; color: #856404;"><strong>Important:</strong> This link is valid for 24 hours only.</p>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">If you didn't request this registration, please ignore this email.</p>
+                        <hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">
+                        <p style="color: #6c757d; font-size: 12px; text-align: center; margin: 0;">Kids Vehicle Tracking System - School Management</p>
+                    </div>
+                </div>
+                """.formatted(schoolName, activationUrl);
+
+            helper.setText(html, true);
+            helper.setTo(to);
+            helper.setSubject("Activate Your School Account - Kids Vehicle Tracking");
+            helper.setFrom("noreply@kidsvt.com");
+            mailSender.send(msg);
+
+            System.out.println("Activation email sent successfully to: " + to);
+        } catch (Exception ex) {
+            System.err.println("Failed to send activation email to: " + to);
+            ex.printStackTrace();
+        }
+    }
+
     /**
      * Map School entity to SchoolResponseDto
      */
     private SchoolResponseDto mapToResponse(School school) {
+        // Check if school has any active users
+        long activeUserCount = schoolUserRepository.countBySchoolAndIsActive(school, true);
+        boolean hasActiveUser = activeUserCount > 0;
+        
         return SchoolResponseDto.builder()
                 .schoolId(school.getSchoolId())
                 .schoolCode(school.getSchoolCode())
@@ -204,6 +316,7 @@ public class AppAdminSchoolServiceImpl implements IAppAdminSchoolService {
                 .email(school.getEmail())
                 .schoolPhoto(school.getSchoolPhoto())
                 .isActive(school.getIsActive())
+                .hasActiveUser(hasActiveUser)
                 .startDate(school.getStartDate())
                 .endDate(school.getEndDate())
                 .createdBy(school.getCreatedBy())

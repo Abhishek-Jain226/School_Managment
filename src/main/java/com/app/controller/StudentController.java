@@ -47,6 +47,12 @@ public class StudentController {
         return ResponseEntity.ok(studentService.getStudentById(studentId));
     }
 
+    // ----------- Get Student Trips -----------
+    @GetMapping("/{studentId}/trips")
+    public ResponseEntity<ApiResponse> getStudentTrips(@PathVariable Integer studentId) {
+        return ResponseEntity.ok(studentService.getStudentTrips(studentId));
+    }
+
     // ----------- Get All Students By School -----------
     @GetMapping("/school/{schoolId}")
     public ResponseEntity<ApiResponse> getAllStudents(@PathVariable Integer schoolId) {

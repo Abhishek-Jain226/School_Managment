@@ -21,6 +21,7 @@ public class VehicleOwnerResponseDto {
 	private String name;
 	private String contactNumber;
 	private String email;
+	private String ownerPhoto;
 	private String address;
 
 	private String createdBy;

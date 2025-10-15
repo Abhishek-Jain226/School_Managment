@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.app.entity.DispatchLog;
+import com.app.entity.Driver;
 import com.app.entity.School;
 import com.app.entity.Student;
 import com.app.entity.Trip;
@@ -24,5 +25,11 @@ public interface DispatchLogRepository extends JpaRepository<DispatchLog, Intege
 	List<DispatchLog> findByVehicle_VehicleIdOrderByCreatedDateDesc(Integer vehicleId);
 
 	List<DispatchLog> findByStudent(Student student);
+	
+	List<DispatchLog> findByTripAndVehicle(Trip trip, Vehicle vehicle);
+	
+	List<DispatchLog> findByTripAndStudent(Trip trip, Student student);
+
+	List<DispatchLog> findByDriverOrderByCreatedDateDesc(Driver driver);
 
 }

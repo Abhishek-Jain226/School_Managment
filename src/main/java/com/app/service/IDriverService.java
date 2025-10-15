@@ -4,6 +4,7 @@ import com.app.payload.request.DriverRequestDto;
 import com.app.payload.request.StudentAttendanceRequestDto;
 import com.app.payload.request.NotificationRequestDto;
 import com.app.payload.response.ApiResponse;
+import java.util.Map;
 
 public interface IDriverService {
 
@@ -35,5 +36,30 @@ public interface IDriverService {
 	ApiResponse startTrip(Integer driverId, Integer tripId);
 
 	ApiResponse endTrip(Integer driverId, Integer tripId);
+
+	// Enhanced Driver Dashboard Methods
+	ApiResponse getTimeBasedTrips(Integer driverId);
+
+	ApiResponse getDriverProfile(Integer driverId);
+
+	ApiResponse updateDriverProfile(Integer driverId, DriverRequestDto requestDto);
+
+	ApiResponse getDriverReports(Integer driverId);
+
+	ApiResponse send5MinuteAlert(Integer driverId, Integer tripId);
+
+	// Context-Sensitive Student Actions
+	ApiResponse markPickupFromHome(Integer driverId, Integer tripId, Integer studentId);
+
+	ApiResponse markDropToSchool(Integer driverId, Integer tripId, Integer studentId);
+
+	ApiResponse markPickupFromSchool(Integer driverId, Integer tripId, Integer studentId);
+
+	ApiResponse markDropToHome(Integer driverId, Integer tripId, Integer studentId);
+
+	ApiResponse getDriverLocation(Integer driverId);
+
+	// Location Tracking
+	ApiResponse updateDriverLocation(Integer driverId, Map<String, Object> locationData);
 
 }

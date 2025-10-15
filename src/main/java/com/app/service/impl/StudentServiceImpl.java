@@ -251,6 +251,35 @@ public class StudentServiceImpl implements IStudentService {
     }
 
     @Override
+    public ApiResponse getStudentTrips(Integer studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
+
+        // Get all trips for this student
+        List<Trip> trips = tripRepository.findByStudentsContaining(student);
+        
+        // Map trips to response DTOs
+        List<Map<String, Object>> tripData = trips.stream()
+                .map(trip -> {
+                    Map<String, Object> tripMap = new java.util.HashMap<>();
+                    tripMap.put("tripId", trip.getTripId());
+                    tripMap.put("tripName", trip.getTripName());
+                    tripMap.put("tripType", trip.getTripType() != null ? trip.getTripType().toString() : "UNKNOWN");
+                    tripMap.put("tripStatus", trip.getTripStatus() != null ? trip.getTripStatus().toString() : "UNKNOWN");
+                    tripMap.put("scheduledTime", trip.getScheduledTime());
+                    tripMap.put("vehicleNumber", trip.getVehicle() != null ? trip.getVehicle().getVehicleNumber() : "N/A");
+                    tripMap.put("vehicleType", trip.getVehicle() != null ? trip.getVehicle().getVehicleType().toString() : "N/A");
+                    tripMap.put("driverName", trip.getDriver() != null ? trip.getDriver().getDriverName() : "N/A");
+                    tripMap.put("schoolName", trip.getSchool() != null ? trip.getSchool().getSchoolName() : "N/A");
+                    tripMap.put("students", trip.getStudents().size());
+                    return tripMap;
+                })
+                .collect(Collectors.toList());
+
+        return new ApiResponse(true, "Student trips retrieved successfully", tripData);
+    }
+
+    @Override
     public ApiResponse getAllStudents(Integer schoolId) {
         School school = schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));

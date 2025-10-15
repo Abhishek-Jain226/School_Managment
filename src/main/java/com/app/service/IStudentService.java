@@ -13,6 +13,8 @@ public interface IStudentService {
 
 	ApiResponse getStudentById(Integer studentId);
 
+	ApiResponse getStudentTrips(Integer studentId);
+
 	ApiResponse getAllStudents(Integer schoolId);
 
 	ApiResponse getStudentsByTrip(Integer tripId);

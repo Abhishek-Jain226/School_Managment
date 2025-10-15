@@ -82,4 +82,15 @@ public class AppAdminSchoolController {
         ApiResponse response = appAdminSchoolService.searchSchools(query);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Resend activation link for school admin
+     */
+    @PutMapping("/{schoolId}/resend-activation")
+    public ResponseEntity<ApiResponse> resendActivationLink(
+            @PathVariable Integer schoolId,
+            @RequestParam String updatedBy) {
+        ApiResponse response = appAdminSchoolService.resendActivationLink(schoolId, updatedBy);
+        return ResponseEntity.ok(response);
+    }
 }

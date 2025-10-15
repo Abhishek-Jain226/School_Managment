@@ -29,6 +29,7 @@ public class SchoolResponseDto {
 	private String email;
 	private String schoolPhoto;
 	private Boolean isActive;
+	private Boolean hasActiveUser;
 	private LocalDate startDate;
 	private LocalDate endDate;
 	private String createdBy;

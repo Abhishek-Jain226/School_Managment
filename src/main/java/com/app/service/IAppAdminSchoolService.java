@@ -35,4 +35,9 @@ public interface IAppAdminSchoolService {
      * Search schools by name, city, or state
      */
     ApiResponse searchSchools(String query);
+    
+    /**
+     * Resend activation link for school admin
+     */
+    ApiResponse resendActivationLink(Integer schoolId, String updatedBy);
 }

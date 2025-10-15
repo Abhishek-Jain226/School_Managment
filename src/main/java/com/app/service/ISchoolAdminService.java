@@ -1,5 +1,7 @@
 package com.app.service;
 
+import java.util.Map;
+
 import com.app.payload.request.SchoolUserRequestDto;
 import com.app.payload.request.StaffCreateRequestDto;
 import com.app.payload.request.UserRequestDto;
@@ -28,6 +30,8 @@ public interface ISchoolAdminService {
 	ApiResponse getStaffByName(Integer schoolId, String name);
 	
 	ApiResponse updateStaffRole(Integer staffId, Integer newRoleId, String updatedBy);
+	
+	ApiResponse updateStaffDetails(Integer staffId, Map<String, Object> request);
 	
 	ApiResponse getAllUsersBySchool(Integer schoolId);
 

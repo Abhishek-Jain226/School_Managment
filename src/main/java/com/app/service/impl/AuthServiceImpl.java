@@ -123,9 +123,21 @@ public class AuthServiceImpl implements IAuthService{
 	@Override
 	public ApiResponse login(LoginRequestDTO request) {
 	   
+	    System.out.println("🔍 Login attempt - LoginId: " + request.getLoginId());
+	    
 	    User user = userRepository.findByUserNameOrContactNumber(
 	            request.getLoginId(), request.getLoginId()
 	    ).orElseThrow(() -> new BadCredentialsException("Invalid username or mobile"));
+
+	    System.out.println("🔍 User found - ID: " + user.getUId() + ", UserName: " + user.getUserName() + ", isActive: " + user.getIsActive());
+
+	    // Check if user is active
+	    if (user.getIsActive() == null || !user.getIsActive()) {
+	        System.out.println("🚫 Login blocked - User is deactivated");
+	        throw new BadCredentialsException("Account is deactivated. Please contact administrator.");
+	    }
+	    
+	    System.out.println("✅ User is active, proceeding with password check");
 
 	    // Password verify
 	    if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -136,6 +148,26 @@ public class AuthServiceImpl implements IAuthService{
 	    var roles = userRoleRepository.findByUser(user).stream()
 	            .map(ur -> ur.getRole().getRoleName())
 	            .collect(Collectors.toList());
+
+	    // Check if user is SCHOOL_ADMIN and if their school is active
+	    if (roles.contains("SCHOOL_ADMIN")) {
+	        System.out.println("🔍 User is SCHOOL_ADMIN, checking school status");
+	        Optional<SchoolUser> schoolUserOpt = schoolUserRepository.findByUser(user);
+	        if (schoolUserOpt.isPresent()) {
+	            School school = schoolUserOpt.get().getSchool();
+	            System.out.println("🔍 School found - ID: " + school.getSchoolId() + ", Name: " + school.getSchoolName() + ", isActive: " + school.getIsActive());
+	            
+	            if (school.getIsActive() == null || !school.getIsActive()) {
+	                System.out.println("🚫 Login blocked - School is deactivated");
+	                throw new BadCredentialsException("School is deactivated. Please contact AppAdmin.");
+	            }
+	            
+	            System.out.println("✅ School is active, proceeding with login");
+	        } else {
+	            System.out.println("⚠️ SCHOOL_ADMIN user found but no school association");
+	            throw new BadCredentialsException("No school association found. Please contact administrator.");
+	        }
+	    }
 
 	    // JWT token generate
 	    String token = jwtUtil.generateToken(user.getUserName(), roles);

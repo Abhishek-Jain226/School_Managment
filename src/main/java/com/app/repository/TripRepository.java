@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.app.entity.Driver;
 import com.app.entity.School;
+import com.app.entity.Student;
 import com.app.entity.Trip;
 
 public interface TripRepository extends JpaRepository<Trip, Integer> {
@@ -43,5 +44,11 @@ public interface TripRepository extends JpaRepository<Trip, Integer> {
 
 	// Find trips by vehicle IDs (for vehicle owner)
 	List<Trip> findByVehicleVehicleIdIn(List<Integer> vehicleIds);
+
+	// Find trips by driver and active status
+	List<Trip> findByDriverAndIsActive(Driver driver, boolean isActive);
+
+	// Find trips containing a specific student
+	List<Trip> findByStudentsContaining(Student student);
 
 }

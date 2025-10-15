@@ -42,6 +42,20 @@ public class DispatchLog {
 	@Column(name = "remarks", length = 255)
 	private String remarks;
 
+	// Location tracking fields
+	@Column(name = "latitude")
+	private Double latitude;
+
+	@Column(name = "longitude")
+	private Double longitude;
+
+	@Column(name = "address", length = 500)
+	private String address;
+
+	@ManyToOne
+	@JoinColumn(name = "driver_id")
+	private Driver driver;
+
 	@Column(name = "created_by", length = 50)
 	private String createdBy;
 

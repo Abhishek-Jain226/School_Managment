@@ -21,7 +21,7 @@ public class NotificationRequestDto {
     @NotNull(message = "Trip ID is required")
     private Integer tripId;
     
-    @NotNull(message = "Dispatch Log ID is required")
+    // Dispatch Log ID is optional - will be created by backend if not provided
     private Integer dispatchLogId;
     
     @NotBlank(message = "Notification type is required")

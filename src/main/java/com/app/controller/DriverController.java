@@ -3,6 +3,7 @@ package com.app.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 import com.app.payload.request.DriverRequestDto;
 import com.app.payload.request.StudentAttendanceRequestDto;
@@ -72,6 +73,77 @@ public class DriverController {
     @PostMapping("/{driverId}/trip/{tripId}/end")
     public ResponseEntity<ApiResponse> endTrip(@PathVariable Integer driverId, @PathVariable Integer tripId) {
         return ResponseEntity.ok(driverService.endTrip(driverId, tripId));
+    }
+
+    // ----------- Get Time-Based Filtered Trips -----------
+    @GetMapping("/{driverId}/trips/time-based")
+    public ResponseEntity<ApiResponse> getTimeBasedTrips(@PathVariable Integer driverId) {
+        return ResponseEntity.ok(driverService.getTimeBasedTrips(driverId));
+    }
+
+    // ----------- Get Driver Profile -----------
+    @GetMapping("/{driverId}/profile")
+    public ResponseEntity<ApiResponse> getDriverProfile(@PathVariable Integer driverId) {
+        return ResponseEntity.ok(driverService.getDriverProfile(driverId));
+    }
+
+    // ----------- Update Driver Profile -----------
+    @PutMapping("/{driverId}/profile")
+    public ResponseEntity<ApiResponse> updateDriverProfile(@PathVariable Integer driverId, @Valid @RequestBody DriverRequestDto requestDto) {
+        return ResponseEntity.ok(driverService.updateDriverProfile(driverId, requestDto));
+    }
+
+    // ----------- Get Driver Reports -----------
+    @GetMapping("/{driverId}/reports")
+    public ResponseEntity<ApiResponse> getDriverReports(@PathVariable Integer driverId) {
+        return ResponseEntity.ok(driverService.getDriverReports(driverId));
+    }
+
+    // ----------- Send 5-Minute Alert -----------
+    @PostMapping("/{driverId}/trip/{tripId}/alert-5min")
+    public ResponseEntity<ApiResponse> send5MinuteAlert(@PathVariable Integer driverId, @PathVariable Integer tripId) {
+        return ResponseEntity.ok(driverService.send5MinuteAlert(driverId, tripId));
+    }
+
+    // ----------- Mark Pickup from Home (Morning Trip) -----------
+    @PostMapping("/{driverId}/trip/{tripId}/student/{studentId}/pickup-home")
+    public ResponseEntity<ApiResponse> markPickupFromHome(@PathVariable Integer driverId, @PathVariable Integer tripId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(driverService.markPickupFromHome(driverId, tripId, studentId));
+    }
+
+    // ----------- Mark Drop to School (Morning Trip) -----------
+    @PostMapping("/{driverId}/trip/{tripId}/student/{studentId}/drop-school")
+    public ResponseEntity<ApiResponse> markDropToSchool(@PathVariable Integer driverId, @PathVariable Integer tripId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(driverService.markDropToSchool(driverId, tripId, studentId));
+    }
+
+    // ----------- Mark Pickup from School (Afternoon Trip) -----------
+    @PostMapping("/{driverId}/trip/{tripId}/student/{studentId}/pickup-school")
+    public ResponseEntity<ApiResponse> markPickupFromSchool(@PathVariable Integer driverId, @PathVariable Integer tripId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(driverService.markPickupFromSchool(driverId, tripId, studentId));
+    }
+
+    // ----------- Mark Drop to Home (Afternoon Trip) -----------
+    @PostMapping("/{driverId}/trip/{tripId}/student/{studentId}/drop-home")
+    public ResponseEntity<ApiResponse> markDropToHome(@PathVariable Integer driverId, @PathVariable Integer tripId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(driverService.markDropToHome(driverId, tripId, studentId));
+    }
+
+    // ----------- Trip Management -----------
+//    @PostMapping("/{driverId}/trip/{tripId}/end")
+//    public ResponseEntity<ApiResponse> endTrip(@PathVariable Integer driverId, @PathVariable Integer tripId) {
+//        return ResponseEntity.ok(driverService.endTrip(driverId, tripId));
+//    }
+
+    // ----------- Location Tracking -----------
+    @PostMapping("/{driverId}/location")
+    public ResponseEntity<ApiResponse> updateDriverLocation(@PathVariable Integer driverId, @RequestBody Map<String, Object> locationData) {
+        return ResponseEntity.ok(driverService.updateDriverLocation(driverId, locationData));
+    }
+
+    @GetMapping("/{driverId}/location")
+    public ResponseEntity<ApiResponse> getDriverLocation(@PathVariable Integer driverId) {
+        return ResponseEntity.ok(driverService.getDriverLocation(driverId));
     }
 
 }

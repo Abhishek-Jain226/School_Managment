@@ -1,19 +1,21 @@
 package com.app.config;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+
 import com.app.entity.Role;
 import com.app.entity.User;
 import com.app.entity.UserRole;
 import com.app.repository.RoleRepository;
 import com.app.repository.UserRepository;
 import com.app.repository.UserRoleRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
@@ -189,4 +191,5 @@ public class DataLoader implements CommandLineRunner {
         
         System.out.println("✅ Cleanup completed! Only one AppAdmin user remains.");
     }
+    
 }

@@ -2,6 +2,7 @@ package com.app.entity;
 
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,6 +39,9 @@ public class TripStudent {
 	private Student student;
 
 	private Integer pickupOrder;
+
+	@Column(name = "attendance_status", length = 20)
+	private String attendanceStatus = "PENDING"; // PENDING, PICKED_UP, DROPPED, ABSENT
 
 	private String createdBy;
 	private LocalDateTime createdDate;

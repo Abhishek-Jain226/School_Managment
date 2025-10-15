@@ -214,6 +214,7 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
 	                .name(request.getName())
 	                .contactNumber(request.getContactNumber())
 	                .email(request.getEmail())
+	                .ownerPhoto(request.getOwnerPhoto())
 	                .address(request.getAddress())
 	                .createdBy(request.getCreatedBy())
 	                .createdDate(LocalDateTime.now())
@@ -599,20 +600,20 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
     }
 
     // ------------------ Private Mapper ------------------
-    private VehicleOwnerResponseDto mapToResponse(VehicleOwner owner) {
-        return VehicleOwnerResponseDto.builder()
-                .ownerId(owner.getOwnerId())
-                .userId(owner.getUser() != null ? owner.getUser().getUId() : null)
-                .name(owner.getName())
-                .contactNumber(owner.getContactNumber())
-                .address(owner.getAddress())
-                .email(owner.getEmail())
-                .createdBy(owner.getCreatedBy())
-                .createdDate(owner.getCreatedDate())
-                .updatedBy(owner.getUpdatedBy())
-                .updatedDate(owner.getUpdatedDate())
-                .build();
-    }
+//    private VehicleOwnerResponseDto mapToResponse(VehicleOwner owner) {
+//        return VehicleOwnerResponseDto.builder()
+//                .ownerId(owner.getOwnerId())
+//                .userId(owner.getUser() != null ? owner.getUser().getUId() : null)
+//                .name(owner.getName())
+//                .contactNumber(owner.getContactNumber())
+//                .address(owner.getAddress())
+//                .email(owner.getEmail())
+//                .createdBy(owner.getCreatedBy())
+//                .createdDate(owner.getCreatedDate())
+//                .updatedBy(owner.getUpdatedBy())
+//                .updatedDate(owner.getUpdatedDate())
+//                .build();
+//    }
 
     @Override
     public ApiResponse getVehiclesInTransitByOwner(Integer ownerId) {
@@ -1296,5 +1297,25 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
             log.error("Error reassigning trip driver: {}", e.getMessage(), e);
             return new ApiResponse(false, "Error reassigning trip driver: " + e.getMessage(), null);
         }
+    }
+
+    /**
+     * Map VehicleOwner entity to VehicleOwnerResponseDto
+     */
+    private VehicleOwnerResponseDto mapToResponse(VehicleOwner owner) {
+        return VehicleOwnerResponseDto.builder()
+                .ownerId(owner.getOwnerId())
+                .userId(owner.getUser() != null ? owner.getUser().getUId() : null)
+                .userName(owner.getUser() != null ? owner.getUser().getUserName() : null)
+                .name(owner.getName())
+                .contactNumber(owner.getContactNumber())
+                .email(owner.getEmail())
+                .ownerPhoto(owner.getOwnerPhoto())
+                .address(owner.getAddress())
+                .createdBy(owner.getCreatedBy())
+                .createdDate(owner.getCreatedDate())
+                .updatedBy(owner.getUpdatedBy())
+                .updatedDate(owner.getUpdatedDate())
+                .build();
     }
 }

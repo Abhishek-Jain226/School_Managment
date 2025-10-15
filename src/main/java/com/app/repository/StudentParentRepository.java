@@ -5,12 +5,15 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.app.entity.Student;
 import com.app.entity.StudentParent;
 import com.app.entity.User;
 
 public interface StudentParentRepository extends JpaRepository<StudentParent, Integer> {
 	
 	List<StudentParent> findByStudent_School_SchoolId(Integer schoolId);
+	
+	List<StudentParent> findByStudent(Student student);
 	
 	Optional<StudentParent> findByParentUser_uId(Integer uId);
 	

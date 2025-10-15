@@ -296,8 +296,21 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
     @Override
     public ApiResponse updateStaffStatus(Integer staffId, Boolean isActive, String updatedBy) {
         try {
+            System.out.println("🔍 updateStaffStatus called - staffId: " + staffId + ", isActive: " + isActive + ", updatedBy: " + updatedBy);
+            
             SchoolUser schoolUser = schoolUserRepository.findById(staffId)
                     .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            // Update the main User table's isActive field (CRITICAL for login authentication)
+            User user = schoolUser.getUser();
+            System.out.println("🔍 Before update - User ID: " + user.getUId() + ", UserName: " + user.getUserName() + ", isActive: " + user.getIsActive());
+            
+            user.setIsActive(isActive);
+            user.setUpdatedBy(updatedBy);
+            user.setUpdatedDate(LocalDateTime.now());
+            userRepository.save(user);
+            
+            System.out.println("🔍 After update - User ID: " + user.getUId() + ", UserName: " + user.getUserName() + ", isActive: " + user.getIsActive());
 
             // Update UserRole table
             List<UserRole> userRoles = userRoleRepository.findByUser(schoolUser.getUser());
@@ -311,6 +324,7 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
                 }
             }
 
+            // Update SchoolUser table
             schoolUser.setIsActive(isActive);
             schoolUser.setUpdatedBy(updatedBy);
             schoolUser.setUpdatedDate(LocalDateTime.now());
@@ -446,6 +460,62 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
             
         } catch (Exception e) {
             return new ApiResponse(false, "Error updating staff role: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse updateStaffDetails(Integer staffId, Map<String, Object> request) {
+        try {
+            SchoolUser schoolUser = schoolUserRepository.findById(staffId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff not found with ID: " + staffId));
+
+            User user = schoolUser.getUser();
+            String updatedBy = (String) request.get("updatedBy");
+            Boolean isActive = (Boolean) request.get("isActive");
+
+            // Update User table fields
+            if (request.containsKey("name")) {
+                user.setUserName((String) request.get("name"));
+            }
+            if (request.containsKey("email")) {
+                user.setEmail((String) request.get("email"));
+            }
+            if (request.containsKey("contact")) {
+                user.setContactNumber((String) request.get("contact"));
+            }
+            if (isActive != null) {
+                user.setIsActive(isActive);
+            }
+            user.setUpdatedBy(updatedBy);
+            user.setUpdatedDate(LocalDateTime.now());
+            userRepository.save(user);
+
+            // Update UserRole table if status changed
+            if (isActive != null) {
+                List<UserRole> userRoles = userRoleRepository.findByUser(user);
+                for (UserRole userRole : userRoles) {
+                    if (userRole.getRole().getRoleId().equals(schoolUser.getRole().getRoleId())) {
+                        userRole.setIsActive(isActive);
+                        userRole.setUpdatedBy(updatedBy);
+                        userRole.setUpdatedDate(LocalDateTime.now());
+                        userRoleRepository.save(userRole);
+                        break;
+                    }
+                }
+            }
+
+            // Update SchoolUser table
+            if (isActive != null) {
+                schoolUser.setIsActive(isActive);
+            }
+            schoolUser.setUpdatedBy(updatedBy);
+            schoolUser.setUpdatedDate(LocalDateTime.now());
+            schoolUserRepository.save(schoolUser);
+
+            return new ApiResponse(true, "Staff details updated successfully", mapToStaffResponse(schoolUser));
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error updating staff details: " + e.getMessage(), null);
         }
     }
 
