@@ -344,6 +344,75 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
     }
 
     @Override
+    public ApiResponse getVehicleOwnerDashboard(Integer ownerId) {
+        try {
+            VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle Owner not found with ID: " + ownerId));
+
+            // Get dashboard statistics
+            Map<String, Object> dashboardData = new HashMap<>();
+            
+            // Basic owner info
+            dashboardData.put("ownerId", ownerId);
+            dashboardData.put("ownerName", owner.getName());
+            dashboardData.put("ownerEmail", owner.getEmail());
+            dashboardData.put("ownerContact", owner.getContactNumber());
+            dashboardData.put("isActive", owner.getUser() != null ? owner.getUser().getIsActive() : false);
+            
+            // Get vehicles count by filtering vehicles created by this owner
+            // Vehicles are linked to owners via createdBy field (username or owner name)
+            String ownerUsername = owner.getUser() != null ? owner.getUser().getUserName() : owner.getName();
+            List<Vehicle> allVehicles = vehicleRepository.findByCreatedBy(ownerUsername);
+            if (allVehicles.isEmpty() && owner.getUser() != null) {
+                // Fallback to owner name
+                allVehicles = vehicleRepository.findByCreatedBy(owner.getName());
+            }
+            long totalVehicles = allVehicles.size();
+            long activeVehicles = allVehicles.stream()
+                    .filter(v -> v.getIsActive() != null && v.getIsActive())
+                    .count();
+            dashboardData.put("totalVehicles", totalVehicles);
+            dashboardData.put("activeVehicles", activeVehicles);
+            dashboardData.put("inactiveVehicles", totalVehicles - activeVehicles);
+            
+            // Get drivers count by filtering all drivers created by this owner
+            List<Driver> allDrivers = driverRepository.findAll().stream()
+                    .filter(d -> owner.getName().equals(d.getCreatedBy()))
+                    .collect(Collectors.toList());
+            long totalDrivers = allDrivers.size();
+            long activeDrivers = allDrivers.stream()
+                    .filter(d -> d.getIsActive() != null && d.getIsActive())
+                    .count();
+            dashboardData.put("totalDrivers", totalDrivers);
+            dashboardData.put("activeDrivers", activeDrivers);
+            dashboardData.put("inactiveDrivers", totalDrivers - activeDrivers);
+            
+            // Get trips count - filter trips by vehicles owned by this owner
+            Set<Integer> vehicleIds = allVehicles.stream()
+                    .map(Vehicle::getVehicleId)
+                    .collect(Collectors.toSet());
+            long totalTrips = tripRepository.findAll().stream()
+                    .filter(t -> t.getVehicle() != null && vehicleIds.contains(t.getVehicle().getVehicleId()))
+                    .count();
+            dashboardData.put("totalTrips", totalTrips);
+            
+            // Get recent activity count (last 7 days)
+            LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
+            long recentActivity = dispatchLogRepository.findAll().stream()
+                    .filter(d -> d.getCreatedDate() != null && d.getCreatedDate().isAfter(weekAgo))
+                    .count();
+            dashboardData.put("recentActivity", recentActivity);
+            
+            dashboardData.put("lastUpdated", LocalDateTime.now());
+            
+            return new ApiResponse(true, "Dashboard data retrieved successfully", dashboardData);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error retrieving dashboard: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
     public ApiResponse getAllVehicleOwners(Integer schoolId) {
         List<VehicleOwnerResponseDto> owners = vehicleOwnerRepository.findAll().stream()
                 .map(this::mapToResponse)

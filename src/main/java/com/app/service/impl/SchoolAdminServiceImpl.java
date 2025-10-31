@@ -172,20 +172,6 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
         return new ApiResponse(true, "Staff assigned to school successfully", null);
     }
 
-    @Override
-    public ApiResponse getDashboardStats(Integer schoolId) {
-        School school = schoolRepository.findById(schoolId)
-                .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
-
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("schoolName", school.getSchoolName());
-        stats.put("totalUsers", schoolUserRepository.countBySchool(school));
-        stats.put("activeUsers", schoolUserRepository.countBySchoolAndIsActive(school, true));
-        stats.put("inactiveUsers", schoolUserRepository.countBySchoolAndIsActive(school, false));
-
-        return new ApiResponse(true, "Dashboard stats fetched successfully", stats);
-    }
-
     // ------------------ Private Mapper ------------------
     private UserResponseDto mapToResponse(User user) {
         return UserResponseDto.builder()
@@ -516,6 +502,47 @@ public class SchoolAdminServiceImpl implements ISchoolAdminService {
             
         } catch (Exception e) {
             return new ApiResponse(false, "Error updating staff details: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getDashboardStats(Integer schoolId) {
+        try {
+            // Validate school exists
+            School school = schoolRepository.findById(schoolId)
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found with ID: " + schoolId));
+
+            // Get all users for this school
+            List<SchoolUser> schoolUsers = schoolUserRepository.findBySchool_SchoolId(schoolId);
+            
+            // Count different types of users
+            long totalUsers = schoolUsers.size();
+            long activeUsers = schoolUsers.stream().mapToLong(su -> su.getIsActive() ? 1 : 0).sum();
+            long teachers = schoolUsers.stream().mapToLong(su -> "TEACHER".equals(su.getRole().getRoleName()) ? 1 : 0).sum();
+            long gateStaff = schoolUsers.stream().mapToLong(su -> "GATE_STAFF".equals(su.getRole().getRoleName()) ? 1 : 0).sum();
+            long parents = schoolUsers.stream().mapToLong(su -> "PARENT".equals(su.getRole().getRoleName()) ? 1 : 0).sum();
+            
+            // Create dashboard stats
+            Map<String, Object> dashboardStats = new HashMap<>();
+            dashboardStats.put("schoolId", schoolId);
+            dashboardStats.put("schoolName", school.getSchoolName());
+            dashboardStats.put("totalUsers", totalUsers);
+            dashboardStats.put("activeUsers", activeUsers);
+            dashboardStats.put("teachers", teachers);
+            dashboardStats.put("gateStaff", gateStaff);
+            dashboardStats.put("parents", parents);
+            dashboardStats.put("inactiveUsers", totalUsers - activeUsers);
+            
+            // Add school basic info
+            dashboardStats.put("schoolAddress", school.getAddress());
+            dashboardStats.put("schoolContact", school.getContactNo());
+            dashboardStats.put("schoolEmail", school.getEmail());
+            dashboardStats.put("isActive", school.getIsActive());
+            
+            return new ApiResponse(true, "Dashboard stats retrieved successfully", dashboardStats);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error retrieving dashboard stats: " + e.getMessage(), null);
         }
     }
 

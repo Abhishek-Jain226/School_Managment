@@ -9,6 +9,7 @@ public interface IVehicleAssignmentService {
     ApiResponse approveRequest(Integer requestId, String updatedBy); // admin -> approve
     ApiResponse rejectRequest(Integer requestId, String updatedBy);  // admin -> reject
     ApiResponse getPendingRequestsBySchool(Integer schoolId); // admin list
+    ApiResponse getAllRequestsBySchool(Integer schoolId); // get all requests (for filtering vehicles)
     ApiResponse getRequestsByOwner(Integer ownerId); // owner list (optional)
 
 	

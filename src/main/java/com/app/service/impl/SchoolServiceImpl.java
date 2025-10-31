@@ -54,60 +54,90 @@ public class SchoolServiceImpl implements ISchoolService {
 
     @Override
     public ApiResponse registerSchool(SchoolRequestDto request) {
-        // Check for duplicate email
-        if (schoolRepository.existsByEmail(request.getEmail())) {
-            return new ApiResponse(false, "School with this email already exists", null);
+        try {
+            System.out.println("🔹 Starting school registration for: " + request.getSchoolName());
+            
+            // Check for duplicate email
+            if (schoolRepository.existsByEmail(request.getEmail())) {
+                System.out.println("❌ Duplicate email found: " + request.getEmail());
+                return new ApiResponse(false, "School with this email already exists", null);
+            }
+            
+            // Check for duplicate registration number
+            if (schoolRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
+                System.out.println("❌ Duplicate registration number found: " + request.getRegistrationNumber());
+                return new ApiResponse(false, "School with this registration number already exists", null);
+            }
+            
+            // Generate unique school code
+            String schoolCode = "SCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            System.out.println("🔹 Generated school code: " + schoolCode);
+
+            School school = School.builder()
+                    .schoolCode(schoolCode)
+                    .schoolName(request.getSchoolName())
+                    .schoolType(request.getSchoolType())
+                    .affiliationBoard(request.getAffiliationBoard())
+                    .registrationNumber(request.getRegistrationNumber())
+                    .address(request.getAddress())
+                    .city(request.getCity())
+                    .district(request.getDistrict())
+                    .state(request.getState())
+                    .pincode(request.getPincode())
+                    .contactNo(request.getContactNo())
+                    .email(request.getEmail())
+                    .schoolPhoto(request.getSchoolPhoto())
+                    .isActive(false) // new school inactive by default
+                    .startDate(request.getStartDate())
+                    .endDate(request.getEndDate())
+                    .createdBy(request.getCreatedBy())
+                    .createdDate(LocalDateTime.now())
+                    .build();
+
+            School saved = schoolRepository.save(school);
+            System.out.println("✅ School saved with ID: " + saved.getSchoolId());
+            
+            // -------- Get Role for School Admin --------
+            Role schoolAdminRole = roleRepository.findByRoleName("SCHOOL_ADMIN")
+                    .orElseThrow(() -> new ResourceNotFoundException("Role SCHOOL_ADMIN not found"));
+            System.out.println("🔹 Found SCHOOL_ADMIN role with ID: " + schoolAdminRole.getRoleId());
+
+            // -------- Create Pending User --------
+            com.app.payload.request.PendingUserRequestDTO pendingUserReq =
+                    com.app.payload.request.PendingUserRequestDTO.builder()
+                            .entityType("SCHOOL")
+                            .entityId(saved.getSchoolId().longValue())
+                            .email(saved.getEmail())
+                            .contactNumber(saved.getContactNo())
+                            .roleId(schoolAdminRole.getRoleId())
+                            .createdBy(request.getCreatedBy())
+                            .build();
+
+            System.out.println("🔹 Creating pending user for email: " + saved.getEmail());
+            ApiResponse pendingUserResponse = pendingUserService.createPendingUser(pendingUserReq);
+            
+            if (!pendingUserResponse.isSuccess()) {
+                System.out.println("❌ Failed to create pending user: " + pendingUserResponse.getMessage());
+                // Rollback: delete the school that was created
+                schoolRepository.delete(saved);
+                return new ApiResponse(false, "Failed to send activation email: " + pendingUserResponse.getMessage(), null);
+            }
+            
+            System.out.println("✅ Pending user created successfully");
+            System.out.println("✅ School registration completed for: " + saved.getSchoolName());
+
+            return new ApiResponse(true, "School registered successfully. Activation link sent to email.",
+                    Map.of("schoolId", saved.getSchoolId(), "pendingUser", pendingUserResponse.getData()));
+                    
+        } catch (ResourceNotFoundException e) {
+            System.out.println("❌ ResourceNotFoundException in registerSchool: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Registration failed: " + e.getMessage(), null);
+        } catch (Exception e) {
+            System.out.println("❌ Exception in registerSchool: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Failed to register school: " + e.getMessage(), null);
         }
-        
-        // Check for duplicate registration number
-        if (schoolRepository.existsByRegistrationNumber(request.getRegistrationNumber())) {
-            return new ApiResponse(false, "School with this registration number already exists", null);
-        }
-        
-        // Generate unique school code
-        String schoolCode = "SCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-
-        School school = School.builder()
-                .schoolCode(schoolCode)
-                .schoolName(request.getSchoolName())
-                .schoolType(request.getSchoolType())
-                .affiliationBoard(request.getAffiliationBoard())
-                .registrationNumber(request.getRegistrationNumber())
-                .address(request.getAddress())
-                .city(request.getCity())
-                .district(request.getDistrict())
-                .state(request.getState())
-                .pincode(request.getPincode())
-                .contactNo(request.getContactNo())
-                .email(request.getEmail())
-                .schoolPhoto(request.getSchoolPhoto())
-                .isActive(false) // new school inactive by default
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .createdBy(request.getCreatedBy())
-                .createdDate(LocalDateTime.now())
-                .build();
-
-        School saved = schoolRepository.save(school);
-     // -------- Get Role for School Admin --------
-        Role schoolAdminRole = roleRepository.findByRoleName("SCHOOL_ADMIN")
-                .orElseThrow(() -> new ResourceNotFoundException("Role SCHOOL_ADMIN not found"));
-
-        // -------- Create Pending User --------
-        com.app.payload.request.PendingUserRequestDTO pendingUserReq =
-                com.app.payload.request.PendingUserRequestDTO.builder()
-                        .entityType("SCHOOL")
-                        .entityId(saved.getSchoolId().longValue())
-                        .email(saved.getEmail())
-                        .contactNumber(saved.getContactNo())
-                        .roleId(schoolAdminRole.getRoleId())
-                        .createdBy(request.getCreatedBy())
-                        .build();
-
-        ApiResponse pendingUserResponse = pendingUserService.createPendingUser(pendingUserReq);
-
-        return new ApiResponse(true, "School registered successfully. Activation link sent to email.",
-                Map.of("schoolId", saved.getSchoolId(), "pendingUser", pendingUserResponse.getData()));
     }
 
     @Override

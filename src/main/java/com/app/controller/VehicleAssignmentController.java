@@ -45,6 +45,12 @@ public class VehicleAssignmentController {
     public ResponseEntity<ApiResponse> getPending(@PathVariable Integer schoolId) {
         return ResponseEntity.ok(service.getPendingRequestsBySchool(schoolId));
     }
+    
+    // Get ALL requests for school (PENDING + APPROVED + REJECTED) - for filtering vehicles
+    @GetMapping("/school/{schoolId}/all")
+    public ResponseEntity<ApiResponse> getAllRequestsBySchool(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(service.getAllRequestsBySchool(schoolId));
+    }
 
     // Owner -> list his requests
     @GetMapping("/owner/{ownerId}")

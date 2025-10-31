@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -17,9 +18,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "trip_students", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_trip_student", columnNames = {"trip_id", "student_id"})
-})
+@Table(name = "trip_students", 
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_trip_student", columnNames = {"trip_id", "student_id"})
+    },
+    indexes = {
+        @Index(name = "idx_trip_students_trip_id", columnList = "trip_id"),
+        @Index(name = "idx_trip_students_student_id", columnList = "student_id"),
+        @Index(name = "idx_trip_students_attendance_status", columnList = "attendance_status")
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

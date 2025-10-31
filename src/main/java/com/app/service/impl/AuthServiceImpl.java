@@ -7,12 +7,15 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.app.entity.PasswordResetToken;
 import com.app.entity.School;
@@ -39,6 +42,8 @@ import jakarta.mail.internet.MimeMessage;
 @Service
 public class AuthServiceImpl implements IAuthService{
 	
+	private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+	
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
@@ -64,6 +69,7 @@ public class AuthServiceImpl implements IAuthService{
 	
 	
 	@Override
+	@Transactional
     public ApiResponse forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByUserNameOrContactNumberOrEmail(
                         request.getLoginId(), request.getLoginId(), request.getLoginId())
@@ -99,6 +105,7 @@ public class AuthServiceImpl implements IAuthService{
     }
 
 	@Override
+	@Transactional
     public ApiResponse resetPassword(ResetPasswordRequest request) {
         PasswordResetToken token = tokenRepository.findByLoginIdAndOtpAndUsedFalse(request.getLoginId(), request.getOtp())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid OTP"));
@@ -123,21 +130,21 @@ public class AuthServiceImpl implements IAuthService{
 	@Override
 	public ApiResponse login(LoginRequestDTO request) {
 	   
-	    System.out.println("🔍 Login attempt - LoginId: " + request.getLoginId());
+	    logger.debug("Login attempt - LoginId: {}", request.getLoginId());
 	    
 	    User user = userRepository.findByUserNameOrContactNumber(
 	            request.getLoginId(), request.getLoginId()
 	    ).orElseThrow(() -> new BadCredentialsException("Invalid username or mobile"));
 
-	    System.out.println("🔍 User found - ID: " + user.getUId() + ", UserName: " + user.getUserName() + ", isActive: " + user.getIsActive());
+	    logger.debug("User found - ID: {}, UserName: {}, isActive: {}", user.getUId(), user.getUserName(), user.getIsActive());
 
 	    // Check if user is active
 	    if (user.getIsActive() == null || !user.getIsActive()) {
-	        System.out.println("🚫 Login blocked - User is deactivated");
+	        logger.warn("Login blocked - User is deactivated: {}", user.getUserName());
 	        throw new BadCredentialsException("Account is deactivated. Please contact administrator.");
 	    }
 	    
-	    System.out.println("✅ User is active, proceeding with password check");
+	    logger.debug("User is active, proceeding with password check");
 
 	    // Password verify
 	    if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -151,20 +158,20 @@ public class AuthServiceImpl implements IAuthService{
 
 	    // Check if user is SCHOOL_ADMIN and if their school is active
 	    if (roles.contains("SCHOOL_ADMIN")) {
-	        System.out.println("🔍 User is SCHOOL_ADMIN, checking school status");
+	        logger.debug("User is SCHOOL_ADMIN, checking school status");
 	        Optional<SchoolUser> schoolUserOpt = schoolUserRepository.findByUser(user);
 	        if (schoolUserOpt.isPresent()) {
 	            School school = schoolUserOpt.get().getSchool();
-	            System.out.println("🔍 School found - ID: " + school.getSchoolId() + ", Name: " + school.getSchoolName() + ", isActive: " + school.getIsActive());
+	            logger.debug("School found - ID: {}, Name: {}, isActive: {}", school.getSchoolId(), school.getSchoolName(), school.getIsActive());
 	            
 	            if (school.getIsActive() == null || !school.getIsActive()) {
-	                System.out.println("🚫 Login blocked - School is deactivated");
+	                logger.warn("Login blocked - School is deactivated: {}", school.getSchoolName());
 	                throw new BadCredentialsException("School is deactivated. Please contact AppAdmin.");
 	            }
 	            
-	            System.out.println("✅ School is active, proceeding with login");
+	            logger.debug("School is active, proceeding with login");
 	        } else {
-	            System.out.println("⚠️ SCHOOL_ADMIN user found but no school association");
+	            logger.warn("SCHOOL_ADMIN user found but no school association: {}", user.getUserName());
 	            throw new BadCredentialsException("No school association found. Please contact administrator.");
 	        }
 	    }
@@ -185,15 +192,14 @@ public class AuthServiceImpl implements IAuthService{
 	    }
 	    // ✅ Priority: VEHICLE_OWNER first, then DRIVER
 	    if (roles.contains("VEHICLE_OWNER")) {
-	        System.out.println("🔍 User has VEHICLE_OWNER role, looking up owner record for user: " + user.getUserName());
+	        logger.debug("User has VEHICLE_OWNER role, looking up owner record for user: {}", user.getUserName());
 	        try {
 	            VehicleOwner owner = ownerRepository.findByUser(user)
 	                    .orElseThrow(() -> new ResourceNotFoundException("Owner not found for user: " + user.getUserName()));
 	            ownerId = owner.getOwnerId();
-	            System.out.println("🔍 Owner ID found: " + ownerId);
+	            logger.debug("Owner ID found: {}", ownerId);
 	        } catch (Exception e) {
-	            System.out.println("⚠️ Error finding owner: " + e.getMessage());
-	            e.printStackTrace();
+	            logger.error("Error finding owner for user {}: {}", user.getUserName(), e.getMessage());
 	        }
 	       
 	        if (schoolUserOpt.isPresent()) {
@@ -202,15 +208,14 @@ public class AuthServiceImpl implements IAuthService{
 	            schoolName = school.getSchoolName();
 	        }
 	    } else if (roles.contains("DRIVER")) {
-	        System.out.println("🔍 User has DRIVER role (no VEHICLE_OWNER), looking up driver record for user: " + user.getUserName());
+	        logger.debug("User has DRIVER role (no VEHICLE_OWNER), looking up driver record for user: {}", user.getUserName());
 	        try {
 	            Driver driver = driverRepository.findByUser(user)
 	                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found for user: " + user.getUserName()));
 	            driverId = driver.getDriverId();
-	            System.out.println("🔍 Driver ID found: " + driverId);
+	            logger.debug("Driver ID found: {}", driverId);
 	        } catch (Exception e) {
-	            System.out.println("⚠️ Error finding driver: " + e.getMessage());
-	            e.printStackTrace();
+	            logger.error("Error finding driver for user {}: {}", user.getUserName(), e.getMessage());
 	        }
 	       
 	        if (schoolUserOpt.isPresent()) {
@@ -219,7 +224,7 @@ public class AuthServiceImpl implements IAuthService{
 	            schoolName = school.getSchoolName();
 	        }
 	    } else {
-	        System.out.println("🔍 User has neither VEHICLE_OWNER nor DRIVER role. Roles: " + roles);
+	        logger.debug("User has neither VEHICLE_OWNER nor DRIVER role. Roles: {}", roles);
 	    }
 
 	    Map<String, Object> data = new HashMap<>();
@@ -233,8 +238,7 @@ public class AuthServiceImpl implements IAuthService{
 	    data.put("ownerId", ownerId);
 	    data.put("driverId", driverId);
 
-	    System.out.println("🔍 Final login response data: " + data);
-	    System.out.println("🔍 Driver ID in final response: " + driverId);
+	    logger.info("Login successful for user: {} with roles: {}", user.getUserName(), roles);
 
 	    return new ApiResponse(true, "Login successful", data);
 

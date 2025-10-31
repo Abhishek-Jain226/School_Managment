@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
@@ -19,7 +20,13 @@ import lombok.NoArgsConstructor;
 
 
 @Entity
-@Table(name = "vehicle_driver")
+@Table(name = "vehicle_driver", indexes = {
+    @Index(name = "idx_vehicle_driver_driver_id", columnList = "driver_id"),
+    @Index(name = "idx_vehicle_driver_vehicle_id", columnList = "vehicle_id"),
+    @Index(name = "idx_vehicle_driver_school_id", columnList = "school_id"),
+    @Index(name = "idx_vehicle_driver_is_active", columnList = "is_active"),
+    @Index(name = "idx_vehicle_driver_is_primary", columnList = "is_primary")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

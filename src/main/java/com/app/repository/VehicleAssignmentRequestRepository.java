@@ -10,6 +10,7 @@ import com.app.entity.VehicleAssignmentRequest;
 public interface VehicleAssignmentRequestRepository extends JpaRepository<VehicleAssignmentRequest, Integer> {
 
 	List<VehicleAssignmentRequest> findBySchool_SchoolIdAndStatus(Integer schoolId, RequestStatus status);
+	List<VehicleAssignmentRequest> findBySchool_SchoolId(Integer schoolId);
     List<VehicleAssignmentRequest> findByOwner_OwnerId(Integer ownerId);
     boolean existsByVehicle_VehicleIdAndSchool_SchoolIdAndStatus(Integer vehicleId, Integer schoolId, RequestStatus status);
 }

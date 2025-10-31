@@ -1,7 +1,9 @@
 package com.app.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,17 +140,29 @@ public class VehicleServiceImpl implements IVehicleService {
                     "Owner not found with ID: " + request.getOwnerId()
                 ));
 
+        // Check if mapping already exists
+        boolean mappingExists = schoolVehicleRepository
+                .existsBySchoolAndVehicle(school, vehicle);
+        
+        if (mappingExists) {
+            return new ApiResponse(false, "Vehicle already assigned to this school", null);
+        }
+
         // SchoolVehicle mapping create
         SchoolVehicle schoolVehicle = SchoolVehicle.builder()
                 .school(school)
                 .vehicle(vehicle)
-                .owner(owner)  // agar owner bhi required hai
-                .isActive(true)  // ✅ FIX
+                .owner(owner)
+                .isActive(true)
+                .createdBy(request.getCreatedBy())
+                .createdDate(LocalDateTime.now())
                 .updatedBy(request.getUpdatedBy())
                 .updatedDate(LocalDateTime.now())
                 .build();
 
-        schoolVehicleRepository.save(schoolVehicle);
+        SchoolVehicle savedMapping = schoolVehicleRepository.save(schoolVehicle);
+        
+        System.out.println("✅ SchoolVehicle mapping saved with ID: " + savedMapping.getSchoolVehicleId());
 
         return new ApiResponse(true, "Vehicle assigned to school successfully", mapToResponse(vehicle));
     }
@@ -174,7 +188,26 @@ public class VehicleServiceImpl implements IVehicleService {
         return schoolVehicleRepository.countBySchool_SchoolId(schoolId);
     }
     
-    // Removed commented code that used findByOwner_OwnerId
+    @Override
+    public ApiResponse getVehiclesByOwner(Integer ownerId) {
+        // Validate vehicle owner exists
+        VehicleOwner owner = ownerRepository.findById(ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ID: " + ownerId));
+        
+        // Get vehicles by createdBy (username)
+        String username = owner.getUser() != null ? owner.getUser().getUserName() : null;
+        if (username == null) {
+            return new ApiResponse(false, "Owner has no associated user", null);
+        }
+        
+        List<Vehicle> vehicles = vehicleRepository.findByCreatedBy(username);
+        List<VehicleResponseDto> response = vehicles.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        
+        return new ApiResponse(true, "Vehicles fetched successfully", response);
+    }
+    
     @Override
     public ApiResponse getVehiclesByCreatedBy(String username) {
         List<Vehicle> vehicles = vehicleRepository.findByCreatedBy(username);
@@ -183,7 +216,52 @@ public class VehicleServiceImpl implements IVehicleService {
                 .collect(Collectors.toList());
         return new ApiResponse(true, "Vehicles fetched successfully", response);
     }
-
-	
+    
+    @Override
+    public ApiResponse getUnassignedVehiclesByOwner(Integer ownerId) {
+        System.out.println("🔍 Getting UNASSIGNED vehicles for ownerId: " + ownerId);
+        
+        // Validate owner exists
+        VehicleOwner owner = ownerRepository.findById(ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + ownerId));
+        
+        System.out.println("🔍 Owner found: " + owner.getName() + " (Username: " + owner.getUser().getUserName() + ")");
+        
+        // Get ALL vehicles created by this owner
+        String ownerUsername = owner.getUser().getUserName();
+        List<Vehicle> allVehicles = vehicleRepository.findByCreatedBy(ownerUsername);
+        System.out.println("🔍 Total vehicles created by owner: " + allVehicles.size());
+        
+        // Get vehicles already assigned to schools
+        List<SchoolVehicle> assignedMappings = schoolVehicleRepository.findByOwner_OwnerId(ownerId);
+        System.out.println("🔍 Already assigned vehicles count: " + assignedMappings.size());
+        
+        // Extract assigned vehicle IDs
+        List<Integer> assignedVehicleIds = assignedMappings.stream()
+                .map(sv -> sv.getVehicle().getVehicleId())
+                .collect(Collectors.toList());
+        
+        System.out.println("🔍 Assigned vehicle IDs: " + assignedVehicleIds);
+        
+        // Filter out assigned vehicles to get UNASSIGNED vehicles
+        List<Vehicle> unassignedVehicles = allVehicles.stream()
+                .filter(v -> !assignedVehicleIds.contains(v.getVehicleId()))
+                .filter(Vehicle::getIsActive)  // Only active vehicles
+                .collect(Collectors.toList());
+        
+        System.out.println("🔍 Unassigned vehicles count: " + unassignedVehicles.size());
+        
+        List<VehicleResponseDto> response = unassignedVehicles.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        
+        Map<String, Object> data = new HashMap<>();
+        data.put("ownerId", ownerId);
+        data.put("ownerName", owner.getName());
+        data.put("totalVehicles", unassignedVehicles.size());
+        data.put("vehicles", response);
+        
+        return new ApiResponse(true, "Unassigned vehicles retrieved successfully", data);
+    }
 
 }

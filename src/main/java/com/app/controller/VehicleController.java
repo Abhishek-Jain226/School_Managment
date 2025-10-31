@@ -62,14 +62,21 @@ public class VehicleController {
         return ResponseEntity.ok(new ApiResponse(true, "Vehicle count fetched", count));
     }
     
- // VehicleController.java
-//    @GetMapping("/owner/{ownerId}")
-//    public ResponseEntity<ApiResponse> getVehiclesByOwner(@PathVariable Integer ownerId) {
-//        return ResponseEntity.ok(vehicleService.getVehiclesByOwner(ownerId));
-//    }
+    // ✅ Get vehicles by ownerId
+    @GetMapping("/owner/{ownerId}")
+    public ResponseEntity<ApiResponse> getVehiclesByOwner(@PathVariable Integer ownerId) {
+        return ResponseEntity.ok(vehicleService.getVehiclesByOwner(ownerId));
+    }
     
+    // ✅ Get vehicles by username (alternative method)
     @GetMapping("/owner/username/{username}")
     public ResponseEntity<ApiResponse> getVehiclesByCreatedBy(@PathVariable String username) {
         return ResponseEntity.ok(vehicleService.getVehiclesByCreatedBy(username));
+    }
+    
+    // ✅ Get UNASSIGNED vehicles by ownerId (for school assignment requests)
+    @GetMapping("/owner/{ownerId}/unassigned")
+    public ResponseEntity<ApiResponse> getUnassignedVehiclesByOwner(@PathVariable Integer ownerId) {
+        return ResponseEntity.ok(vehicleService.getUnassignedVehiclesByOwner(ownerId));
     }
 }

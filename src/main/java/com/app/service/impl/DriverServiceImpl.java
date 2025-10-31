@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,8 @@ import com.app.service.IWebSocketNotificationService;
 @Service
 public class DriverServiceImpl implements IDriverService {
 
+    private static final Logger logger = LoggerFactory.getLogger(DriverServiceImpl.class);
+
     @Autowired
     private DriverRepository driverRepository;
 
@@ -91,6 +95,7 @@ public class DriverServiceImpl implements IDriverService {
     private com.app.repository.VehicleRepository vehicleRepository;
 
     @Override
+    @Transactional
     public ApiResponse createDriver(DriverRequestDto request) {
         // Note: User will be created and linked during activation, no need to check existing user
 
@@ -238,28 +243,28 @@ public class DriverServiceImpl implements IDriverService {
 
     @Override
     public ApiResponse getDriverDashboard(Integer driverId) {
-        System.out.println("🔍 getDriverDashboard called with driverId: " + driverId);
+        logger.debug("getDriverDashboard called with driverId: {}", driverId);
         try {
             Driver driver = driverRepository.findById(driverId)
                     .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
             
-            System.out.println("🔍 Driver found: " + driver.getDriverName() + " (ID: " + driver.getDriverId() + ")");
+            logger.debug("Driver found: {} (ID: {})", driver.getDriverName(), driver.getDriverId());
 
             // Validate that the driver has user credentials (is activated)
             if (driver.getUser() == null) {
-                System.out.println("🔍 Driver has not completed user activation");
+                logger.warn("Driver has not completed user activation: {}", driver.getDriverName());
                 return new ApiResponse(false, "Driver has not completed user activation. Please complete registration first.", null);
             }
-            System.out.println("🔍 Driver is activated with user ID = " + driver.getUser().getUId());
+            logger.debug("Driver is activated with user ID = {}", driver.getUser().getUId());
 
             // Get driver's assigned vehicle
             List<VehicleDriver> vehicleDrivers = vehicleDriverRepository.findByDriverAndIsActiveTrue(driver);
-            System.out.println("🔍 Found " + vehicleDrivers.size() + " active vehicle assignments for driver");
+            logger.debug("Found {} active vehicle assignments for driver", vehicleDrivers.size());
             
             VehicleDriver vehicleDriver = vehicleDrivers.stream().findFirst().orElse(null);
 
             if (vehicleDriver == null) {
-                System.out.println("🔍 No active vehicle assignment found for driver: " + driver.getDriverName());
+                logger.warn("No active vehicle assignment found for driver: {}", driver.getDriverName());
                 // Return a basic dashboard without vehicle info
                 DriverDashboardResponseDto dashboard = DriverDashboardResponseDto.builder()
                         .driverId(driver.getDriverId())
@@ -289,13 +294,13 @@ public class DriverServiceImpl implements IDriverService {
                 return new ApiResponse(true, "Driver dashboard data retrieved successfully (No vehicle assigned)", dashboard);
             }
             
-            System.out.println("🔍 Vehicle assignment found: Vehicle " + vehicleDriver.getVehicle().getVehicleNumber() + 
-                             " assigned to School " + vehicleDriver.getSchool().getSchoolName());
+            logger.debug("Vehicle assignment found: Vehicle {} assigned to School {}", 
+                        vehicleDriver.getVehicle().getVehicleNumber(), vehicleDriver.getSchool().getSchoolName());
 
             Vehicle vehicle = vehicleDriver.getVehicle();
             
             // Log current vehicle capacity from database
-            System.out.println("🔍 Vehicle capacity from database: " + vehicle.getCapacity());
+            logger.debug("Vehicle capacity from database: {}", vehicle.getCapacity());
             
             // Get today's trips
             List<Trip> todayTrips = tripRepository.findByDriverAndDate(driver, LocalDate.now());
@@ -315,13 +320,13 @@ public class DriverServiceImpl implements IDriverService {
             int studentsPickedUp = 0;
             int studentsDropped = 0;
             
-            System.out.println("🔍 Calculating student statistics for " + todayTrips.size() + " trips");
+            logger.debug("Calculating student statistics for {} trips", todayTrips.size());
             
             for (Trip trip : todayTrips) {
                 // Count total students in trip
                 int tripStudents = tripStudentRepository.countByTrip(trip);
                 totalStudentsToday += tripStudents;
-                System.out.println("🔍 Trip " + trip.getTripName() + " has " + tripStudents + " students");
+                logger.debug("Trip {} has {} students", trip.getTripName(), tripStudents);
                 
                 // Count students picked up and dropped based on dispatch logs
                 List<DispatchLog> tripLogs = dispatchLogRepository.findByTripAndVehicle(trip, vehicle);
@@ -468,6 +473,7 @@ public class DriverServiceImpl implements IDriverService {
     }
 
     @Override
+    @Transactional
     public ApiResponse markStudentAttendance(Integer driverId, StudentAttendanceRequestDto request) {
         try {
             System.out.println("🔍 markStudentAttendance called - driverId: " + driverId + ", tripId: " + request.getTripId() + ", studentId: " + request.getStudentId() + ", eventType: " + request.getEventType());
@@ -521,6 +527,7 @@ public class DriverServiceImpl implements IDriverService {
     }
 
     @Override
+    @Transactional
     public ApiResponse sendParentNotification(Integer driverId, NotificationRequestDto request) {
         try {
             System.out.println("🔔 sendParentNotification called for driverId: " + driverId + ", tripId: " + request.getTripId());
@@ -1182,21 +1189,39 @@ public class DriverServiceImpl implements IDriverService {
             Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
             
+            // ✅ CHECK 1: Driver must be activated (have a user account)
+            if (driver.getUser() == null) {
+                System.out.println("⚠️ Driver not activated - no user account found");
+                return ApiResponse.builder()
+                    .success(true)
+                    .message("Driver account not activated yet")
+                    .data(null)
+                    .build();
+            }
+            
+            // ✅ CHECK 2: Driver must have active vehicle assignment
+            List<VehicleDriver> vehicleAssignments = vehicleDriverRepository.findByDriverAndIsActiveTrue(driver);
+            if (vehicleAssignments.isEmpty()) {
+                System.out.println("⚠️ No active vehicle assignment found for driver");
+                return ApiResponse.builder()
+                    .success(true)
+                    .message("No vehicle assigned to driver")
+                    .data(null)
+                    .build();
+            }
+            
             // Get school and vehicle information
             String schoolName = "N/A";
             String vehicleNumber = "N/A";
             String vehicleType = "N/A";
             
-            List<VehicleDriver> vehicleAssignments = vehicleDriverRepository.findByDriverAndIsActiveTrue(driver);
-            if (!vehicleAssignments.isEmpty()) {
-                VehicleDriver assignment = vehicleAssignments.get(0);
-                if (assignment.getSchool() != null) {
-                    schoolName = assignment.getSchool().getSchoolName();
-                }
-                if (assignment.getVehicle() != null) {
-                    vehicleNumber = assignment.getVehicle().getVehicleNumber();
-                    vehicleType = assignment.getVehicle().getVehicleType().toString();
-                }
+            VehicleDriver assignment = vehicleAssignments.get(0);
+            if (assignment.getSchool() != null) {
+                schoolName = assignment.getSchool().getSchoolName();
+            }
+            if (assignment.getVehicle() != null) {
+                vehicleNumber = assignment.getVehicle().getVehicleNumber();
+                vehicleType = assignment.getVehicle().getVehicleType().toString();
             }
             
             DriverProfileResponseDto profile = DriverProfileResponseDto.builder()
@@ -1214,7 +1239,7 @@ public class DriverServiceImpl implements IDriverService {
                 .updatedDate(driver.getUpdatedDate())
                 .build();
             
-            System.out.println("🔍 Driver profile retrieved successfully for: " + driver.getDriverName());
+            System.out.println("✅ Driver profile retrieved successfully for: " + driver.getDriverName());
             return ApiResponse.builder()
                 .success(true)
                 .message("Driver profile retrieved successfully")
@@ -1282,6 +1307,27 @@ public class DriverServiceImpl implements IDriverService {
             
             Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
+            
+            // ✅ CHECK 1: Driver must be activated (have a user account)
+            if (driver.getUser() == null) {
+                System.out.println("⚠️ Driver not activated - cannot generate reports");
+                return ApiResponse.builder()
+                    .success(true)
+                    .message("Driver account not activated yet")
+                    .data(null)
+                    .build();
+            }
+            
+            // ✅ CHECK 2: Driver must have active vehicle assignment
+            List<VehicleDriver> vehicleAssignments = vehicleDriverRepository.findByDriverAndIsActiveTrue(driver);
+            if (vehicleAssignments.isEmpty()) {
+                System.out.println("⚠️ No active vehicle assignment - cannot generate reports");
+                return ApiResponse.builder()
+                    .success(true)
+                    .message("No vehicle assigned to driver")
+                    .data(null)
+                    .build();
+            }
             
             // Get all trips for this driver
             List<Trip> allTrips = tripRepository.findByDriverAndIsActive(driver, true);

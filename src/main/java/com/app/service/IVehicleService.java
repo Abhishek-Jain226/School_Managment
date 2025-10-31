@@ -20,10 +20,10 @@ public interface IVehicleService {
 	
 	long getVehicleCountBySchool(Integer schoolId);
 	
-	// Removed commented method that used findByOwner_OwnerId
+	ApiResponse getVehiclesByOwner(Integer ownerId);
 	
 	ApiResponse getVehiclesByCreatedBy(String username);
 	
-	
+	ApiResponse getUnassignedVehiclesByOwner(Integer ownerId);
 
 }

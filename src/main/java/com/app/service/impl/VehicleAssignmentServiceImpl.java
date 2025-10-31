@@ -69,20 +69,20 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 
 	        VehicleAssignmentRequest savedRequest = requestRepo.save(r);
 	        
-	        // Send WebSocket notification to School Admin
-	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
-	                .type("VEHICLE_ASSIGNMENT_REQUEST")
-	                .title("New Vehicle Assignment Request")
-	                .message("New vehicle assignment request from ${owner.getOwnerName()} for vehicle ${vehicle.getVehicleNumber()}")
-	                .priority("HIGH")
-	                .schoolId(school.getSchoolId())
-	                .vehicleId(vehicle.getVehicleId())
-	                .action("CREATE")
-	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
-	                .targetRole("SCHOOL_ADMIN")
-	                .build();
-	        
-	        webSocketNotificationService.sendNotificationToSchool(school.getSchoolId(), notification);
+        // Send WebSocket notification to School Admin
+        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+                .type("VEHICLE_ASSIGNMENT_REQUEST")
+                .title("New Vehicle Assignment Request")
+                .message("New vehicle assignment request from " + owner.getName() + " for vehicle " + vehicle.getVehicleNumber())
+                .priority("MEDIUM") // Changed from HIGH to MEDIUM to reduce spam
+                .schoolId(school.getSchoolId())
+                .vehicleId(vehicle.getVehicleId())
+                .action("CREATE")
+                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+                .targetRole("SCHOOL_ADMIN")
+                .build();
+        
+        webSocketNotificationService.sendNotificationToSchool(school.getSchoolId(), notification);
 	        
 	        return new ApiResponse(true, "Assignment request created", savedRequest);
 	    }
@@ -186,6 +186,12 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	    public ApiResponse getPendingRequestsBySchool(Integer schoolId) {
 	        List<VehicleAssignmentRequest> list = requestRepo.findBySchool_SchoolIdAndStatus(schoolId, RequestStatus.PENDING);
 	        return new ApiResponse(true, "Pending requests fetched", list);
+	    }
+	    
+	    @Override
+	    public ApiResponse getAllRequestsBySchool(Integer schoolId) {
+	        List<VehicleAssignmentRequest> list = requestRepo.findBySchool_SchoolId(schoolId);
+	        return new ApiResponse(true, "All requests fetched", list);
 	    }
 
 	    @Override

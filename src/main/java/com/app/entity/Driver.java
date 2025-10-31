@@ -86,4 +86,12 @@ public class Driver {
 		this.updatedDate = LocalDateTime.now();
 	}
 
+    // Compatibility getters for dashboard/trip code:
+//    public String getName() {
+//        return driverName;
+//    }
+//
+//    public String getContactNumber() {
+//        return driverContactNumber;
+//    }
 }

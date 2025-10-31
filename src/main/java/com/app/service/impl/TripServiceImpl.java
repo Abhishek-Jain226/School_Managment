@@ -148,7 +148,7 @@ public class TripServiceImpl implements ITripService {
     }
 
     private TripResponseDto mapToResponse(Trip trip) {
-        return TripResponseDto.builder()
+        TripResponseDto.TripResponseDtoBuilder builder = TripResponseDto.builder()
                 .tripId(trip.getTripId())
                 .schoolId(trip.getSchool().getSchoolId())
                 .schoolName(trip.getSchool().getSchoolName())
@@ -171,8 +171,16 @@ public class TripServiceImpl implements ITripService {
                 .createdBy(trip.getCreatedBy())
                 .createdDate(trip.getCreatedDate())
                 .updatedBy(trip.getUpdatedBy())
-                .updatedDate(trip.getUpdatedDate())
-                .build();
+                .updatedDate(trip.getUpdatedDate());
+        
+        // Add driver information if driver is assigned
+        if (trip.getDriver() != null) {
+            builder.driverId(trip.getDriver().getDriverId())
+                   .driverName(trip.getDriver().getDriverName())
+                   .driverContactNumber(trip.getDriver().getDriverContactNumber());
+        }
+        
+        return builder.build();
     }
 
     @Override

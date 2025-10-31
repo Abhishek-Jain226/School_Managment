@@ -19,7 +19,7 @@ This folder contains database-related files for the Kids Vehicle Tracking Applic
 - **Database Type**: MySQL 8.0
 - **Host**: localhost:3306
 - **Username**: root
-- **Application Server**: 192.168.29.254:9001
+- **Application Server**: 10.195.183.208:9001
 
 ## 🔍 Key Tables
 

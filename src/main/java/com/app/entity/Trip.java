@@ -14,6 +14,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -22,16 +23,26 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@Table(name = "trips", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_trip_school_vehicle_number", columnNames = {"school_id", "vehicle_id", "trip_number"})
-})
+@Table(name = "trips", 
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_trip_school_vehicle_number", columnNames = {"school_id", "vehicle_id", "trip_number"})
+    },
+    indexes = {
+        @Index(name = "idx_trips_driver_id", columnList = "driver_id"),
+        @Index(name = "idx_trips_school_id", columnList = "school_id"),
+        @Index(name = "idx_trips_vehicle_id", columnList = "vehicle_id"),
+        @Index(name = "idx_trips_trip_type", columnList = "trip_type")
+    }
+)
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Trip {
 
 	@Id
