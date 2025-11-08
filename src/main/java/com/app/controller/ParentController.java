@@ -59,6 +59,12 @@ public class ParentController {
     public ResponseEntity<ApiResponse> getStudentByParentUserId(@PathVariable Integer userId) {
         return ResponseEntity.ok(parentService.getStudentByParentUserId(userId));
     }
+    
+ // ----------- Get All Students By Parent UserId -----------
+    @GetMapping("/{parentId}/students")
+    public ResponseEntity<ApiResponse> getAllStudentsByParentId(@PathVariable Integer parentId) {
+        return ResponseEntity.ok(parentService.getAllStudentsByParentId(parentId));
+    }
 
     // ----------- Get Parent Dashboard -----------
     @GetMapping("/{userId}/dashboard")
@@ -70,6 +76,12 @@ public class ParentController {
     @GetMapping("/{userId}/notifications")
     public ResponseEntity<ApiResponse> getParentNotifications(@PathVariable Integer userId) {
         return ResponseEntity.ok(parentService.getParentNotifications(userId));
+    }
+    
+    // ----------- Get Parent Trips -----------
+    @GetMapping("/{userId}/trips")
+    public ResponseEntity<ApiResponse> getParentTrips(@PathVariable Integer userId) {
+        return ResponseEntity.ok(parentService.getParentTrips(userId));
     }
 
     // ----------- Get Attendance History -----------

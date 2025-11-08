@@ -69,6 +69,18 @@ public class VehicleOwnerController {
         return ResponseEntity.ok(vehicleOwnerService.getVehicleOwnerByUserId(userId));
     }
     
+    // ----------- Get Notifications for Vehicle Owner -----------
+    @GetMapping("/user/{userId}/notifications")
+    public ResponseEntity<ApiResponse> getVehicleOwnerNotifications(@PathVariable Integer userId) {
+        return ResponseEntity.ok(vehicleOwnerService.getVehicleOwnerNotifications(userId));
+    }
+
+    // ----------- Get Notifications for Vehicle Owner by OwnerId -----------
+    @GetMapping("/{ownerId}/notifications")
+    public ResponseEntity<ApiResponse> getVehicleOwnerNotificationsByOwnerId(@PathVariable Integer ownerId) {
+        return ResponseEntity.ok(vehicleOwnerService.getVehicleOwnerNotificationsByOwnerId(ownerId));
+    }
+    
     // ----------- Associate Existing Vehicle Owner with School -----------
     @PostMapping("/{ownerId}/associate-school")
     public ResponseEntity<ApiResponse> associateOwnerWithSchool(

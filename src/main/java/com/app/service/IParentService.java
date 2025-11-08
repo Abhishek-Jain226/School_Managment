@@ -19,11 +19,15 @@ public interface IParentService {
 	ApiResponse getParentByUserId(Integer userId);
 	
 	ApiResponse getStudentByParentUserId(Integer userId);
+	
+	ApiResponse getAllStudentsByParentId(Integer parentId);
 
 	// Parent Dashboard Methods
 	ApiResponse getParentDashboard(Integer userId);
 	
 	ApiResponse getParentNotifications(Integer userId);
+	
+	ApiResponse getParentTrips(Integer userId);
 	
 	ApiResponse getAttendanceHistory(Integer userId, String fromDate, String toDate);
 	

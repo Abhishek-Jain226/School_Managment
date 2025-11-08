@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.app.entity.Driver;
 import com.app.entity.DispatchLog;
+import com.app.entity.Notification;
 import com.app.entity.Role;
 import com.app.entity.Trip;
 import com.app.entity.TripStudent;
@@ -23,7 +24,9 @@ import com.app.entity.User;
 import com.app.entity.UserRole;
 import com.app.entity.Vehicle;
 import com.app.entity.VehicleDriver;
+import com.app.entity.VehicleLocation;
 import com.app.Enum.EventType;
+import com.app.Enum.NotificationType;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.DriverRequestDto;
 import com.app.payload.request.NotificationRequestDto;
@@ -34,10 +37,13 @@ import com.app.payload.response.DriverDashboardResponseDto;
 import com.app.payload.response.DriverProfileResponseDto;
 import com.app.payload.response.DriverReportsResponseDto;
 import com.app.payload.response.DriverResponseDto;
+import com.app.payload.response.DispatchLogResponseDto;
 import com.app.payload.response.TimeBasedTripsResponseDto;
 import com.app.payload.response.TripResponseDto;
+import com.app.payload.response.WebSocketNotificationDto;
 import com.app.repository.DispatchLogRepository;
 import com.app.repository.DriverRepository;
+import com.app.repository.NotificationRepository;
 import com.app.repository.RoleRepository;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.TripRepository;
@@ -46,6 +52,7 @@ import com.app.repository.TripStudentRepository;
 import com.app.repository.UserRepository;
 import com.app.repository.UserRoleRepository;
 import com.app.repository.VehicleDriverRepository;
+import com.app.repository.VehicleLocationRepository;
 import com.app.service.IDriverService;
 import com.app.service.IPendingUserService;
 import com.app.service.IWebSocketNotificationService;
@@ -89,10 +96,16 @@ public class DriverServiceImpl implements IDriverService {
     private DispatchLogRepository dispatchLogRepository;
     
     @Autowired
+    private NotificationRepository notificationRepository;
+    
+    @Autowired
     private StudentParentRepository studentParentRepository;
     
     @Autowired
     private com.app.repository.VehicleRepository vehicleRepository;
+
+    @Autowired
+    private VehicleLocationRepository vehicleLocationRepository;
 
     @Override
     @Transactional
@@ -302,27 +315,37 @@ public class DriverServiceImpl implements IDriverService {
             // Log current vehicle capacity from database
             logger.debug("Vehicle capacity from database: {}", vehicle.getCapacity());
             
-            // Get today's trips
-            List<Trip> todayTrips = tripRepository.findByDriverAndDate(driver, LocalDate.now());
+            // Get all trips assigned to this driver (don't filter by date or active status)
+            // This ensures we show all trips that are assigned to the driver
+            List<Trip> allDriverTrips = tripRepository.findByDriver(driver);
+            logger.debug("Found {} total trips assigned to driver", allDriverTrips.size());
             
-            // If no trips found for today, try to get all active trips for the driver
-            if (todayTrips.isEmpty()) {
-                todayTrips = tripRepository.findByDriverAndIsActiveTrue(driver);
-            }
+            // Filter for active trips only (for dashboard display)
+            List<Trip> activeTrips = allDriverTrips.stream()
+                    .filter(t -> Boolean.TRUE.equals(t.getIsActive()))
+                    .collect(Collectors.toList());
+            logger.debug("Found {} active trips assigned to driver", activeTrips.size());
             
-            // Calculate statistics
-            int totalTripsToday = todayTrips.size();
-            int completedTrips = (int) todayTrips.stream().filter(t -> "COMPLETED".equals(t.getTripStatus())).count();
-            int pendingTrips = (int) todayTrips.stream().filter(t -> "NOT_STARTED".equals(t.getTripStatus())).count();
+            // If no active trips, use all trips (for statistics)
+            List<Trip> tripsForStats = activeTrips.isEmpty() ? allDriverTrips : activeTrips;
             
-            // Calculate student statistics
+            // Calculate statistics based on all assigned trips
+            int totalTripsToday = tripsForStats.size();
+            int completedTrips = (int) tripsForStats.stream()
+                    .filter(t -> "COMPLETED".equals(t.getTripStatus()) || "ENDED".equals(t.getTripStatus()))
+                    .count();
+            int pendingTrips = (int) tripsForStats.stream()
+                    .filter(t -> "NOT_STARTED".equals(t.getTripStatus()) || "SCHEDULED".equals(t.getTripStatus()))
+                    .count();
+            
+            // Calculate student statistics across all assigned trips
             int totalStudentsToday = 0;
             int studentsPickedUp = 0;
             int studentsDropped = 0;
             
-            logger.debug("Calculating student statistics for {} trips", todayTrips.size());
+            logger.debug("Calculating student statistics for {} trips", tripsForStats.size());
             
-            for (Trip trip : todayTrips) {
+            for (Trip trip : tripsForStats) {
                 // Count total students in trip
                 int tripStudents = tripStudentRepository.countByTrip(trip);
                 totalStudentsToday += tripStudents;
@@ -345,11 +368,12 @@ public class DriverServiceImpl implements IDriverService {
                 System.out.println("🔍 Trip " + trip.getTripName() + " - Pickups: " + pickupCount + ", Drops: " + dropCount);
             }
             
-            System.out.println("🔍 Total students today: " + totalStudentsToday + ", Picked up: " + studentsPickedUp + ", Dropped: " + studentsDropped);
+            System.out.println("🔍 Total trips: " + totalTripsToday + ", Total students: " + totalStudentsToday + 
+                             ", Picked up: " + studentsPickedUp + ", Dropped: " + studentsDropped);
             
-            // Get current trip
-            Trip currentTrip = todayTrips.stream()
-                    .filter(t -> "IN_PROGRESS".equals(t.getTripStatus()))
+            // Get current trip (in progress)
+            Trip currentTrip = tripsForStats.stream()
+                    .filter(t -> "IN_PROGRESS".equals(t.getTripStatus()) || "STARTED".equals(t.getTripStatus()))
                     .findFirst().orElse(null);
 
             // Get recent activities
@@ -412,27 +436,20 @@ public class DriverServiceImpl implements IDriverService {
 
             System.out.println("🔍 Driver is activated, searching for trips...");
 
-            // Try multiple methods to find trips
-            List<Trip> trips = tripRepository.findByDriverAndIsActiveTrue(driver);
-            System.out.println("🔍 Found " + trips.size() + " active trips by driver");
+            // Get all trips assigned to this driver (regardless of active status or date)
+            // This ensures we show all trips that are assigned to the driver
+            List<Trip> allTrips = tripRepository.findByDriver(driver);
+            System.out.println("🔍 Found " + allTrips.size() + " total trips assigned to driver");
             
-            // If no trips found, try to find trips by driver ID directly
-            if (trips.isEmpty()) {
-                trips = tripRepository.findByDriver_DriverId(driverId);
-                System.out.println("🔍 Found " + trips.size() + " trips by driver ID");
-            }
+            // Filter for active trips (preferred for display)
+            List<Trip> activeTrips = allTrips.stream()
+                    .filter(t -> Boolean.TRUE.equals(t.getIsActive()))
+                    .collect(Collectors.toList());
+            System.out.println("🔍 Found " + activeTrips.size() + " active trips");
             
-            // If still no trips, try to find today's trips
-            if (trips.isEmpty()) {
-                trips = tripRepository.findByDriver_DriverIdAndDate(driverId, LocalDate.now());
-                System.out.println("🔍 Found " + trips.size() + " trips for today");
-            }
-
-            // If still no trips, try to find all trips for this driver (for debugging)
-            if (trips.isEmpty()) {
-                trips = tripRepository.findByDriver(driver);
-                System.out.println("🔍 Found " + trips.size() + " total trips for driver (including inactive)");
-            }
+            // Use active trips if available, otherwise use all trips
+            List<Trip> trips = activeTrips.isEmpty() ? allTrips : activeTrips;
+            System.out.println("🔍 Using " + trips.size() + " trips for display");
 
             System.out.println("🔍 Final trip count: " + trips.size());
             for (Trip trip : trips) {
@@ -625,10 +642,144 @@ public class DriverServiceImpl implements IDriverService {
                     .build();
             tripStatusRepository.save(tripStatus);
 
+            // GET ALL STUDENTS IN TRIP
+            List<TripStudent> tripStudents = tripStudentRepository.findByTrip(trip);
+            
+            // CREATE DISPATCH LOG AND NOTIFICATION FOR EACH STUDENT
+            for (TripStudent ts : tripStudents) {
+                // Create DispatchLog entry
+                DispatchLog dispatchLog = DispatchLog.builder()
+                    .trip(trip)
+                    .student(ts.getStudent())
+                    .school(trip.getSchool())
+                    .vehicle(trip.getVehicle())
+                    .driver(driver)
+                    .eventType(EventType.TRIP_STARTED)
+                    .remarks("Trip started by driver: " + driver.getDriverName())
+                    .createdDate(LocalDateTime.now())
+                    .createdBy(driver.getDriverName())
+                    .build();
+                DispatchLog savedDispatchLog = dispatchLogRepository.save(dispatchLog);
+                
+                // Create Notification record
+                Notification notification = Notification.builder()
+                    .dispatchLog(savedDispatchLog)
+                    .notificationType(NotificationType.TRIP_UPDATE)
+                    .isSent(true)
+                    .sentAt(LocalDateTime.now())
+                    .createdBy(driver.getDriverName())
+                    .createdDate(LocalDateTime.now())
+                    .build();
+                notificationRepository.save(notification);
+                
+                // SEND WEBSOCKET NOTIFICATION TO PARENTS
+                WebSocketNotificationDto notificationDto = WebSocketNotificationDto.builder()
+                    .type("TRIP_STARTED")
+                    .title("Trip Started")
+                    .message("Trip has started for " + trip.getTripName())
+                    .priority("HIGH")
+                    .tripId(trip.getTripId())
+                    .schoolId(trip.getSchool().getSchoolId())
+                    .studentId(ts.getStudent().getStudentId())
+                    .build();
+                _sendNotificationToStudentParents(ts.getStudent(), notificationDto);
+            }
+            
+            // ALSO SEND TO SCHOOL ADMIN
+            WebSocketNotificationDto schoolDto = WebSocketNotificationDto.builder()
+                .type("TRIP_STARTED")
+                .title("Trip Started")
+                .message("Driver " + driver.getDriverName() + " started trip: " + trip.getTripName())
+                .priority("MEDIUM")
+                .tripId(trip.getTripId())
+                .schoolId(trip.getSchool().getSchoolId())
+                .build();
+            webSocketNotificationService.sendNotificationToSchool(trip.getSchool().getSchoolId(), schoolDto);
+
             return new ApiResponse(true, "Trip started successfully", null);
         } catch (Exception e) {
             return new ApiResponse(false, "Error starting trip: " + e.getMessage(), null);
         }
+    }
+
+    // ---------------- Mapper ----------------
+    private DispatchLogResponseDto mapToDispatchLogDto(DispatchLog log) {
+        if (log == null) {
+            return null;
+        }
+        
+        // Extract simple values to avoid any Hibernate proxy issues
+        Integer dispatchLogId = log.getDispatchLogId();
+        String remarks = log.getRemarks();
+        String createdBy = log.getCreatedBy();
+        LocalDateTime createdDate = log.getCreatedDate();
+        String updatedBy = log.getUpdatedBy();
+        LocalDateTime updatedDate = log.getUpdatedDate();
+        String eventTypeStr = log.getEventType() != null ? log.getEventType().name() : null;
+        
+        // Extract IDs and names with null checks to avoid lazy loading issues
+        Integer tripId = null;
+        String tripName = null;
+        try {
+            if (log.getTrip() != null) {
+                tripId = log.getTrip().getTripId();
+                tripName = log.getTrip().getTripName();
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading exceptions
+            System.out.println("Warning: Could not access trip data: " + e.getMessage());
+        }
+        
+        Integer studentId = null;
+        String studentName = null;
+        try {
+            if (log.getStudent() != null) {
+                studentId = log.getStudent().getStudentId();
+                studentName = log.getStudent().getFirstName() + " " + log.getStudent().getLastName();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access student data: " + e.getMessage());
+        }
+        
+        Integer schoolId = null;
+        String schoolName = null;
+        try {
+            if (log.getSchool() != null) {
+                schoolId = log.getSchool().getSchoolId();
+                schoolName = log.getSchool().getSchoolName();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access school data: " + e.getMessage());
+        }
+        
+        Integer vehicleId = null;
+        String vehicleNumber = null;
+        try {
+            if (log.getVehicle() != null) {
+                vehicleId = log.getVehicle().getVehicleId();
+                vehicleNumber = log.getVehicle().getVehicleNumber();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access vehicle data: " + e.getMessage());
+        }
+        
+        return DispatchLogResponseDto.builder()
+                .dispatchLogId(dispatchLogId)
+                .tripId(tripId)
+                .tripName(tripName)
+                .studentId(studentId)
+                .studentName(studentName)
+                .schoolId(schoolId)
+                .schoolName(schoolName)
+                .vehicleId(vehicleId)
+                .vehicleNumber(vehicleNumber)
+                .eventType(eventTypeStr)
+                .remarks(remarks)
+                .createdBy(createdBy)
+                .createdDate(createdDate)
+                .updatedBy(updatedBy)
+                .updatedDate(updatedDate)
+                .build();
     }
 
     @Override
@@ -1410,9 +1561,9 @@ public class DriverServiceImpl implements IDriverService {
     }
 
     @Override
-    public ApiResponse send5MinuteAlert(Integer driverId, Integer tripId) {
+    public ApiResponse send5MinuteAlert(Integer driverId, Integer tripId, Integer studentId) {
         try {
-            System.out.println("🔍 send5MinuteAlert called - driverId: " + driverId + ", tripId: " + tripId);
+            System.out.println("🔍 send5MinuteAlert called - driverId: " + driverId + ", tripId: " + tripId + ", studentId: " + studentId);
             
             Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
@@ -1420,33 +1571,55 @@ public class DriverServiceImpl implements IDriverService {
             Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found with ID: " + tripId));
             
-            // Create notification request for 5-minute alert
-            NotificationRequestDto notificationRequest = NotificationRequestDto.builder()
-                .driverId(driverId)
-                .tripId(tripId)
-                .message("🚌 Your child's school bus will arrive in approximately 5 minutes. Please be ready for pickup.")
-                .notificationType("ARRIVAL_NOTIFICATION")
-                .sendSms(true)
-                .sendEmail(true)
-                .sendPushNotification(true)
+            // Get ALL students in trip and find SPECIFIC student
+            List<TripStudent> tripStudents = tripStudentRepository.findByTrip(trip);
+            TripStudent tripStudent = tripStudents.stream()
+                .filter(ts -> ts.getStudent().getStudentId().equals(studentId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found in this trip"));
+            
+            // Create DispatchLog for SPECIFIC student
+            DispatchLog dispatchLog = DispatchLog.builder()
+                .trip(trip)
+                .student(tripStudent.getStudent())  // ⭐ SPECIFIC student
+                .school(trip.getSchool())
+                .vehicle(trip.getVehicle())
+                .driver(driver)
+                .eventType(EventType.ARRIVAL_NOTIFICATION)
+                .remarks("5-minute alert sent")
+                .createdDate(LocalDateTime.now())
+                .createdBy(driver.getDriverName())
                 .build();
+            DispatchLog savedDispatchLog = dispatchLogRepository.save(dispatchLog);
             
-            // Send notification using existing method
-            ApiResponse notificationResponse = sendParentNotification(driverId, notificationRequest);
+            // CREATE NOTIFICATION
+            Notification notification = Notification.builder()
+                .dispatchLog(savedDispatchLog)
+                .notificationType(NotificationType.ARRIVAL_NOTIFICATION)
+                .isSent(true)
+                .sentAt(LocalDateTime.now())
+                .createdBy(driver.getDriverName())
+                .createdDate(LocalDateTime.now())
+                .build();
+            notificationRepository.save(notification);
             
-            if (notificationResponse.isSuccess()) {
-                System.out.println("🔍 5-minute alert sent successfully for trip: " + trip.getTripName());
-                return ApiResponse.builder()
-                    .success(true)
-                    .message("5-minute arrival alert sent to all parents successfully")
-                    .data(notificationResponse.getData())
-                    .build();
-            } else {
-                return ApiResponse.builder()
-                    .success(false)
-                    .message("Failed to send 5-minute alert: " + notificationResponse.getMessage())
-                    .build();
-            }
+            // Send WebSocket to SPECIFIC parents
+            WebSocketNotificationDto notificationDto = WebSocketNotificationDto.builder()
+                .type("ARRIVAL_NOTIFICATION")
+                .title("Bus Arrival Notification")
+                .message("🚌 Your child's school bus will arrive in approximately 5 minutes. Please be ready for pickup.")
+                .priority("HIGH")
+                .tripId(trip.getTripId())
+                .studentId(tripStudent.getStudent().getStudentId())
+                .schoolId(trip.getSchool().getSchoolId())
+                .build();
+            _sendNotificationToStudentParents(tripStudent.getStudent(), notificationDto);
+            
+            System.out.println("🔍 5-minute alert sent successfully for student: " + tripStudent.getStudent().getFirstName());
+            return ApiResponse.builder()
+                .success(true)
+                .message("5-minute alert sent successfully")
+                .build();
             
         } catch (Exception e) {
             System.out.println("❌ Error in send5MinuteAlert: " + e.getMessage());
@@ -1519,16 +1692,30 @@ public class DriverServiceImpl implements IDriverService {
             DispatchLog savedLog = dispatchLogRepository.save(dispatchLog);
             System.out.println("🔍 DispatchLog saved with ID: " + savedLog.getDispatchLogId());
             
+            // Create Notification record
+            Notification notification = Notification.builder()
+                .dispatchLog(savedLog)
+                .notificationType(mapEventTypeToNotificationType(eventType))
+                .isSent(true)
+                .sentAt(LocalDateTime.now())
+                .createdBy(driver.getDriverName())
+                .createdDate(LocalDateTime.now())
+                .build();
+            notificationRepository.save(notification);
+            System.out.println("🔍 Notification saved for event: " + eventType);
+            
             // Send real-time notification
             String notificationMessage = buildNotificationMessage(eventType, tripStudent.getStudent().getFirstName());
             _sendRealTimeNotification(trip, tripStudent.getStudent(), eventType.toString(), driver);
             
-            System.out.println("🔍 Student action completed successfully: " + successMessage);
-            return ApiResponse.builder()
-                .success(true)
-                .message(successMessage)
-                .data(savedLog)
-                .build();
+                          System.out.println("🔍 Student action completed successfully: " + successMessage);
+              // Return null for data to avoid circular reference issues
+              // The success message is sufficient for the frontend
+              return ApiResponse.builder()
+                  .success(true)
+                  .message(successMessage)
+                  .data(null)
+                  .build();
                 
         } catch (Exception e) {
             System.out.println("❌ Error in markStudentAction: " + e.getMessage());
@@ -1552,6 +1739,31 @@ public class DriverServiceImpl implements IDriverService {
                 return "Student Dropped at Home - " + studentName + " has been dropped at home safely.";
             default:
                 return "Student Update - " + studentName + " status has been updated.";
+        }
+    }
+
+    /**
+     * Map EventType to NotificationType
+     */
+    private NotificationType mapEventTypeToNotificationType(EventType eventType) {
+        switch (eventType) {
+            case TRIP_STARTED:
+                return NotificationType.TRIP_UPDATE;
+            case PICKUP_FROM_PARENT:
+            case PICKUP_FROM_SCHOOL:
+                return NotificationType.PICKUP_CONFIRMATION;
+            case DROP_TO_SCHOOL:
+            case DROP_TO_PARENT:
+                return NotificationType.DROP_CONFIRMATION;
+            case ARRIVAL_NOTIFICATION:
+                return NotificationType.ARRIVAL_NOTIFICATION;
+            case DELAY_NOTIFICATION:
+                return NotificationType.DELAY_NOTIFICATION;
+            case GATE_ENTRY:
+            case GATE_EXIT:
+                return NotificationType.SYSTEM_ALERT;
+            default:
+                return NotificationType.PUSH;
         }
     }
 
@@ -1697,6 +1909,85 @@ public class DriverServiceImpl implements IDriverService {
         } catch (Exception e) {
             System.out.println("❌ Error getting driver location: " + e.getMessage());
             return new ApiResponse(false, "Failed to get driver location: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse saveLocationUpdate(Integer driverId, Integer tripId, Double latitude, Double longitude, String address) {
+        try {
+            System.out.println("📍 saveLocationUpdate called - driverId: " + driverId + ", tripId: " + tripId);
+            
+            // Validate driver
+            Driver driver = driverRepository.findById(driverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found with ID: " + driverId));
+
+            // Validate trip and check if it's assigned to driver
+            Trip trip = tripRepository.findByDriverAndTripId(driver, tripId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Trip not found or not assigned to driver"));
+
+            // Verify trip is active (trip_status = "IN_PROGRESS")
+            if (!"IN_PROGRESS".equals(trip.getTripStatus())) {
+                return new ApiResponse(false, "Cannot update location: Trip is not in progress. Current status: " + trip.getTripStatus(), null);
+            }
+
+            // Create and save VehicleLocation record
+            VehicleLocation vehicleLocation = VehicleLocation.builder()
+                    .trip(trip)
+                    .driver(driver)
+                    .vehicle(trip.getVehicle())
+                    .school(trip.getSchool())
+                    .latitude(latitude)
+                    .longitude(longitude)
+                    .address(address != null ? address : "")
+                    .speed(null) // Can be calculated or provided if available
+                    .bearing(null) // Can be calculated or provided if available
+                    .build();
+
+            VehicleLocation savedLocation = vehicleLocationRepository.save(vehicleLocation);
+            System.out.println("📍 VehicleLocation saved with ID: " + savedLocation.getLocationId());
+
+            // Send WebSocket notification with location data to all parents, school admin, and vehicle owner
+            WebSocketNotificationDto locationNotification = WebSocketNotificationDto.builder()
+                    .type("LOCATION_UPDATE")
+                    .title("Vehicle Location Update")
+                    .message(String.format("📍 Vehicle %s is currently at %.6f, %.6f. Trip: %s", 
+                            trip.getVehicle().getVehicleNumber(), latitude, longitude, trip.getTripName()))
+                    .priority("MEDIUM")
+                    .tripId(trip.getTripId())
+                    .schoolId(trip.getSchool().getSchoolId())
+                    .vehicleId(trip.getVehicle().getVehicleId())
+                    .timestamp(LocalDateTime.now())
+                    .data(Map.of(
+                            "locationId", savedLocation.getLocationId(),
+                            "driverId", driver.getDriverId(),
+                            "driverName", driver.getDriverName(),
+                            "latitude", latitude,
+                            "longitude", longitude,
+                            "address", address != null ? address : "",
+                            "tripId", trip.getTripId(),
+                            "tripName", trip.getTripName(),
+                            "vehicleId", trip.getVehicle().getVehicleId(),
+                            "vehicleNumber", trip.getVehicle().getVehicleNumber()
+                    ))
+                    .build();
+
+            // Send notification to school (which includes school admin, parents, and vehicle owner)
+            webSocketNotificationService.sendNotificationToSchool(trip.getSchool().getSchoolId(), locationNotification);
+            System.out.println("📱 Location update notification sent to school ID: " + trip.getSchool().getSchoolId());
+
+            return new ApiResponse(true, "Location update saved successfully", Map.of(
+                    "locationId", savedLocation.getLocationId(),
+                    "latitude", latitude,
+                    "longitude", longitude,
+                    "address", address != null ? address : "",
+                    "timestamp", LocalDateTime.now()
+            ));
+            
+        } catch (Exception e) {
+            System.out.println("❌ Error saving location update: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Failed to save location update: " + e.getMessage(), null);
         }
     }
 }

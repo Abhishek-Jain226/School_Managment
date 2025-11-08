@@ -54,5 +54,9 @@ public interface IVehicleOwnerService {
 	ApiResponse getDriverRotationSchedule(Integer ownerId);
 	
 	ApiResponse reassignTripDriver(Integer tripId, Integer newDriverId, String updatedBy);
+	
+	    ApiResponse getVehicleOwnerNotifications(Integer userId);
+
+    ApiResponse getVehicleOwnerNotificationsByOwnerId(Integer ownerId);
 
 }

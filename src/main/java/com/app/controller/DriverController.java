@@ -100,9 +100,9 @@ public class DriverController {
     }
 
     // ----------- Send 5-Minute Alert -----------
-    @PostMapping("/{driverId}/trip/{tripId}/alert-5min")
-    public ResponseEntity<ApiResponse> send5MinuteAlert(@PathVariable Integer driverId, @PathVariable Integer tripId) {
-        return ResponseEntity.ok(driverService.send5MinuteAlert(driverId, tripId));
+    @PostMapping("/{driverId}/trip/{tripId}/student/{studentId}/alert-5min")
+    public ResponseEntity<ApiResponse> send5MinuteAlert(@PathVariable Integer driverId, @PathVariable Integer tripId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(driverService.send5MinuteAlert(driverId, tripId, studentId));
     }
 
     // ----------- Mark Pickup from Home (Morning Trip) -----------
@@ -144,6 +144,27 @@ public class DriverController {
     @GetMapping("/{driverId}/location")
     public ResponseEntity<ApiResponse> getDriverLocation(@PathVariable Integer driverId) {
         return ResponseEntity.ok(driverService.getDriverLocation(driverId));
+    }
+
+    // ----------- Save Location Update for Active Trip -----------
+    @PostMapping("/{driverId}/trip/{tripId}/location")
+    public ResponseEntity<ApiResponse> saveLocationUpdate(
+            @PathVariable Integer driverId,
+            @PathVariable Integer tripId,
+            @RequestBody Map<String, Object> locationData) {
+        Double latitude = locationData.get("latitude") != null ? 
+            ((Number) locationData.get("latitude")).doubleValue() : null;
+        Double longitude = locationData.get("longitude") != null ? 
+            ((Number) locationData.get("longitude")).doubleValue() : null;
+        String address = locationData.get("address") != null ? 
+            (String) locationData.get("address") : null;
+        
+        if (latitude == null || longitude == null) {
+            return ResponseEntity.badRequest().body(
+                new com.app.payload.response.ApiResponse(false, "latitude and longitude are required", null));
+        }
+        
+        return ResponseEntity.ok(driverService.saveLocationUpdate(driverId, tripId, latitude, longitude, address));
     }
 
 }

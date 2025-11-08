@@ -31,12 +31,14 @@ import com.app.payload.response.MonthlyReportResponseDto;
 import com.app.payload.response.ParentDashboardResponseDto;
 import com.app.payload.response.ParentNotificationResponseDto;
 import com.app.payload.response.StudentResponseDto;
+import com.app.entity.TripStudent;
 import com.app.repository.DispatchLogRepository;
 import com.app.repository.NotificationRepository;
 import com.app.repository.StudentAttendanceRepository;
 import com.app.repository.StudentParentRepository;
 import com.app.repository.StudentRepository;
 import com.app.repository.TripRepository;
+import com.app.repository.TripStudentRepository;
 import com.app.repository.UserRepository;
 import com.app.service.IParentService;
 
@@ -58,6 +60,8 @@ public class ParentServiceImpl implements IParentService {
     private DispatchLogRepository dispatchLogRepository;
 	@Autowired
     private TripRepository tripRepository;
+	@Autowired
+    private TripStudentRepository tripStudentRepository;
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
@@ -166,6 +170,17 @@ public class ParentServiceImpl implements IParentService {
 
         return new ApiResponse(true, "Student fetched successfully", mapToResponse(student));
     }
+    
+    @Override
+    public ApiResponse getAllStudentsByParentId(Integer parentId) {
+        List<StudentParent> studentParents = studentParentRepository.findAllByParentUser_uId(parentId);
+        
+        List<StudentResponseDto> students = studentParents.stream()
+                .map(sp -> mapToResponse(sp.getStudent()))
+                .collect(Collectors.toList());
+        
+        return new ApiResponse(true, "Students fetched successfully", students);
+    }
 
     // Mapper for StudentResponseDto
     private StudentResponseDto mapToResponse(Student student) {
@@ -178,6 +193,7 @@ public class ParentServiceImpl implements IParentService {
                 .sectionId(student.getSectionMaster() != null ? student.getSectionMaster().getSectionId() : null)
                 .sectionName(student.getSectionMaster() != null ? student.getSectionMaster().getSectionName() : null)
                 .gender(student.getGender())
+                .studentPhoto(student.getStudentPhoto())
                 .motherName(student.getMotherName())
                 .fatherName(student.getFatherName())
                 .primaryContactNumber(student.getPrimaryContactNumber())
@@ -285,21 +301,35 @@ public class ParentServiceImpl implements IParentService {
             User parentUser = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("Parent user not found with ID: " + userId));
 
-            // Get student linked to this parent
-            StudentParent studentParent = studentParentRepository.findByParentUser_uId(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("No student linked to this parent"));
+            // Get ALL students linked to this parent
+            List<StudentParent> studentParents = studentParentRepository.findAllByParentUser_uId(userId);
+            
+            if (studentParents.isEmpty()) {
+                System.out.println("🔍 No students linked to this parent");
+                return new ApiResponse(true, "No students linked to this parent", new ArrayList<>());
+            }
 
-            Student student = studentParent.getStudent();
+            // Get all notifications for ALL students - aggregate them
+            List<Notification> allNotifications = new ArrayList<>();
+            for (StudentParent sp : studentParents) {
+                List<Notification> studentNotifications = notificationRepository
+                        .findByDispatchLog_Student_StudentIdOrderByCreatedDateDesc(sp.getStudent().getStudentId());
+                allNotifications.addAll(studentNotifications);
+            }
+            
+            // Sort by createdDate descending (most recent first)
+            allNotifications.sort((a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()));
 
-            // Get all notifications for this student - optimized query
-            List<Notification> notifications = notificationRepository
-                    .findByDispatchLog_Student_StudentIdOrderByCreatedDateDesc(student.getStudentId());
+            // Limit to last 10 for dashboard performance
+            List<Notification> limitedNotifications = allNotifications.stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
 
-            List<ParentNotificationResponseDto> notificationDtos = notifications.stream()
+            List<ParentNotificationResponseDto> notificationDtos = limitedNotifications.stream()
                     .map(this::mapToParentNotificationDto)
                     .collect(Collectors.toList());
 
-            System.out.println("🔍 Found " + notificationDtos.size() + " notifications for parent");
+            System.out.println("🔍 Found " + notificationDtos.size() + " notifications for parent across " + studentParents.size() + " students");
             return new ApiResponse(true, "Parent notifications retrieved successfully", notificationDtos);
 
         } catch (Exception e) {
@@ -309,6 +339,50 @@ public class ParentServiceImpl implements IParentService {
         }
     }
 
+    @Override
+    public ApiResponse getParentTrips(Integer userId) {
+        System.out.println("🔍 getParentTrips called with userId: " + userId);
+        try {
+            // Get parent user
+            User parentUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent user not found with ID: " + userId));
+
+            // Get all students linked to this parent
+            List<StudentParent> studentParents = studentParentRepository.findAllByParentUser_uId(userId);
+            
+            if (studentParents.isEmpty()) {
+                return new ApiResponse(true, "No students linked to this parent", new ArrayList<>());
+            }
+
+            // Get all TripStudent entries for all students
+            List<TripStudent> tripStudents = new ArrayList<>();
+            for (StudentParent sp : studentParents) {
+                List<TripStudent> studentTrips = tripStudentRepository.findByStudent(sp.getStudent());
+                tripStudents.addAll(studentTrips);
+            }
+            
+            // Filter active trips (IN_PROGRESS) and get unique trips
+            List<Trip> activeTrips = tripStudents.stream()
+                    .map(TripStudent::getTrip)
+                    .filter(trip -> trip.getIsActive() && "IN_PROGRESS".equals(trip.getTripStatus()))
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            // Map to DTOs
+            List<Map<String, Object>> tripDtos = activeTrips.stream()
+                    .map(this::mapToTripDto)
+                    .collect(Collectors.toList());
+
+            System.out.println("🔍 Found " + tripDtos.size() + " active trips for parent");
+            return new ApiResponse(true, "Parent trips retrieved successfully", tripDtos);
+
+        } catch (Exception e) {
+            System.out.println("🔍 Error in getParentTrips: " + e.getMessage());
+            e.printStackTrace();
+            return new ApiResponse(false, "Error retrieving parent trips: " + e.getMessage(), null);
+        }
+    }
+    
     @Override
     public ApiResponse getAttendanceHistory(Integer userId, String fromDate, String toDate) {
         System.out.println("🔍 getAttendanceHistory called with userId: " + userId);

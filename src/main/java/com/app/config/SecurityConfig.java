@@ -22,10 +22,12 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http.csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
+		http.csrf().disable()
+			.cors().and() // Enable CORS
+			.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**", "/api/schools/register", "/activation", "/ws/**", "/app/**")
+                                .requestMatchers("/api/auth/**", "/api/pending-users/**", "/api/public/**", "/api/schools/register", "/activation", "/ws/**", "/app/**", "/api/**")
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated())

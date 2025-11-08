@@ -6,6 +6,7 @@ import com.app.entity.VehicleDriver;
 import com.app.entity.School;
 import com.app.entity.VehicleOwner;
 import com.app.entity.User;
+import com.app.entity.Trip;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.VehicleDriverRequestDto;
 import com.app.payload.response.ApiResponse;
@@ -16,6 +17,7 @@ import com.app.repository.SchoolRepository;
 import com.app.repository.VehicleRepository;
 import com.app.repository.SchoolVehicleRepository;
 import com.app.repository.VehicleOwnerRepository;
+import com.app.repository.TripRepository;
 import com.app.service.IVehicleDriverService;
 
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,8 @@ public class VehicleDriverServiceImpl implements IVehicleDriverService {
     private SchoolVehicleRepository schoolVehicleRepository;
     @Autowired
     private VehicleOwnerRepository vehicleOwnerRepository;
+    @Autowired
+    private TripRepository tripRepository;
 
     @Override
     public ApiResponse assignDriverToVehicle(VehicleDriverRequestDto request) {
@@ -110,6 +114,53 @@ public class VehicleDriverServiceImpl implements IVehicleDriverService {
         System.out.println("🔍 assignDriverToVehicle: vehicleDriver entity created = " + vehicleDriver);
         VehicleDriver saved = vehicleDriverRepository.save(vehicleDriver);
         System.out.println("🔍 assignDriverToVehicle: vehicleDriver saved with ID = " + saved.getVehicleDriverId());
+
+        // Update trips that use this vehicle and school to assign the driver
+        // Logic:
+        // 1. Always update trips that don't have a driver assigned
+        // 2. If this is a primary driver, also update trips that already have a driver (replace with primary)
+        // 3. If this is not primary, leave trips with existing drivers unchanged
+        try {
+            List<Trip> tripsToUpdate = tripRepository.findByVehicleAndSchool(vehicle, school);
+            System.out.println("🔍 assignDriverToVehicle: Found " + tripsToUpdate.size() + " trips for vehicle and school");
+            
+            int updatedTripsCount = 0;
+            for (Trip trip : tripsToUpdate) {
+                boolean shouldUpdate = false;
+                
+                // Always update trips without a driver
+                if (trip.getDriver() == null) {
+                    shouldUpdate = true;
+                    System.out.println("🔍 assignDriverToVehicle: Trip ID " + trip.getTripId() + " has no driver - will assign");
+                }
+                // If this is a primary driver, also update trips that already have a driver
+                else if (Boolean.TRUE.equals(request.getIsPrimary())) {
+                    shouldUpdate = true;
+                    System.out.println("🔍 assignDriverToVehicle: Trip ID " + trip.getTripId() + " has driver " + trip.getDriver().getDriverName() + " - will replace with primary driver");
+                }
+                
+                if (shouldUpdate) {
+                    trip.setDriver(driver);
+                    trip.setUpdatedBy(request.getCreatedBy());
+                    trip.setUpdatedDate(LocalDateTime.now());
+                    tripRepository.save(trip);
+                    updatedTripsCount++;
+                    System.out.println("🔍 assignDriverToVehicle: Updated trip ID " + trip.getTripId() + " with driver " + driver.getDriverName());
+                } else {
+                    System.out.println("🔍 assignDriverToVehicle: Trip ID " + trip.getTripId() + " already has driver " + trip.getDriver().getDriverName() + " - skipping (not primary)");
+                }
+            }
+            
+            if (updatedTripsCount > 0) {
+                System.out.println("🔍 assignDriverToVehicle: Updated " + updatedTripsCount + " trip(s) with driver");
+            } else {
+                System.out.println("🔍 assignDriverToVehicle: No trips needed updating");
+            }
+        } catch (Exception e) {
+            System.out.println("⚠️ assignDriverToVehicle: Error updating trips: " + e.getMessage());
+            e.printStackTrace();
+            // Don't fail the assignment if trip update fails, just log the error
+        }
 
         return new ApiResponse(true, "Driver assigned to vehicle successfully", mapToResponse(saved));
     }

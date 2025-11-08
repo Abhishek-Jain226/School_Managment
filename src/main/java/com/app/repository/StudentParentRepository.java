@@ -17,6 +17,8 @@ public interface StudentParentRepository extends JpaRepository<StudentParent, In
 	
 	Optional<StudentParent> findByParentUser_uId(Integer uId);
 	
+	List<StudentParent> findAllByParentUser_uId(Integer uId);
+	
 	Optional<StudentParent> findByParentUser(User parentUser);
 
 }

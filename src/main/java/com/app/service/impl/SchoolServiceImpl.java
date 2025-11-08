@@ -17,6 +17,7 @@ import com.app.entity.SchoolUser;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.SchoolRequestDto;
 import com.app.payload.response.ApiResponse;
+import com.app.payload.response.DispatchLogResponseDto;
 import com.app.payload.response.SchoolResponseDto;
 import com.app.repository.DispatchLogRepository;
 import com.app.repository.RoleRepository;
@@ -24,8 +25,10 @@ import com.app.repository.SchoolRepository;
 import com.app.repository.SchoolUserRepository;
 import com.app.repository.StudentRepository;
 import com.app.repository.UserRepository;
+import com.app.service.IClassMasterService;
 import com.app.service.IPendingUserService;
 import com.app.service.ISchoolService;
+import com.app.service.ISectionMasterService;
 import com.app.Enum.EventType;
 
 @Service
@@ -51,6 +54,12 @@ public class SchoolServiceImpl implements ISchoolService {
     
     @Autowired
     private SchoolUserRepository schoolUserRepository;
+    
+    @Autowired
+    private IClassMasterService classMasterService;
+    
+    @Autowired
+    private ISectionMasterService sectionMasterService;
 
     @Override
     public ApiResponse registerSchool(SchoolRequestDto request) {
@@ -442,6 +451,83 @@ public class SchoolServiceImpl implements ISchoolService {
             
         } catch (Exception e) {
             return new ApiResponse(false, "Error deleting staff: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getSchoolNotifications(Integer schoolId) {
+        try {
+            // Fetch all dispatch logs for the school
+            List<DispatchLog> dispatchLogs = dispatchLogRepository.findBySchool_SchoolIdOrderByCreatedDateDesc(schoolId);
+            
+            // Limit to last 10 for dashboard performance
+            List<DispatchLog> limitedLogs = dispatchLogs.stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
+            
+            // Convert to DTOs to avoid circular reference issues
+            List<DispatchLogResponseDto> notificationDtos = limitedLogs.stream()
+                    .map(this::mapToDispatchLogDto)
+                    .collect(Collectors.toList());
+            
+            return new ApiResponse(true, "Notifications fetched successfully", notificationDtos);
+            
+        } catch (Exception e) {
+            return new ApiResponse(false, "Error fetching school notifications: " + e.getMessage(), null);
+        }
+    }
+
+    // ---------------- Mapper ----------------
+    private DispatchLogResponseDto mapToDispatchLogDto(DispatchLog log) {
+        return DispatchLogResponseDto.builder()
+                .dispatchLogId(log.getDispatchLogId())
+                .tripId(log.getTrip() != null ? log.getTrip().getTripId() : null)
+                .tripName(log.getTrip() != null ? log.getTrip().getTripName() : null)
+                .studentId(log.getStudent() != null ? log.getStudent().getStudentId() : null)
+                .studentName(log.getStudent() != null ? 
+                        log.getStudent().getFirstName() + " " + log.getStudent().getLastName() : null)
+                .schoolId(log.getSchool() != null ? log.getSchool().getSchoolId() : null)
+                .schoolName(log.getSchool() != null ? log.getSchool().getSchoolName() : null)
+                .vehicleId(log.getVehicle() != null ? log.getVehicle().getVehicleId() : null)
+                .vehicleNumber(log.getVehicle() != null ? log.getVehicle().getVehicleNumber() : null)
+                .eventType(log.getEventType() != null ? log.getEventType().name() : null)
+                .remarks(log.getRemarks())
+                .createdBy(log.getCreatedBy())
+                .createdDate(log.getCreatedDate())
+                .updatedBy(log.getUpdatedBy())
+                .updatedDate(log.getUpdatedDate())
+                .build();
+    }
+
+    @Override
+    public ApiResponse getSchoolClasses(Integer schoolId) {
+        try {
+            // Validate school exists
+            if (!schoolRepository.existsById(schoolId)) {
+                return new ApiResponse(false, "School not found with ID: " + schoolId, null);
+            }
+            
+            // Delegate to ClassMasterService
+            return classMasterService.getAllActiveClasses(schoolId);
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching classes for school " + schoolId + ": " + e.getMessage());
+            return new ApiResponse(false, "Failed to fetch classes: " + e.getMessage(), null);
+        }
+    }
+
+    @Override
+    public ApiResponse getSchoolSections(Integer schoolId) {
+        try {
+            // Validate school exists
+            if (!schoolRepository.existsById(schoolId)) {
+                return new ApiResponse(false, "School not found with ID: " + schoolId, null);
+            }
+            
+            // Delegate to SectionMasterService
+            return sectionMasterService.getAllActiveSections(schoolId);
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching sections for school " + schoolId + ": " + e.getMessage());
+            return new ApiResponse(false, "Failed to fetch sections: " + e.getMessage(), null);
         }
     }
 }

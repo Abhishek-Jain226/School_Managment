@@ -133,20 +133,25 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
             }
         }
 
-	        // Send WebSocket notification to Vehicle Owner
-	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
-	                .type("VEHICLE_ASSIGNMENT_APPROVED")
-	                .title("Vehicle Assignment Approved")
-	                .message("Your vehicle ${req.getVehicle().getVehicleNumber()} has been approved for school ${req.getSchool().getSchoolName()}")
-	                .priority("MEDIUM")
-	                .vehicleId(req.getVehicle().getVehicleId())
-	                .schoolId(req.getSchool().getSchoolId())
-	                .action("APPROVE")
-	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
-	                .targetRole("VEHICLE_OWNER")
-	                .build();
-	        
-	        webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
+        // Send WebSocket notification to Vehicle Owner
+        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+                .type("VEHICLE_ASSIGNMENT_APPROVED")
+                .title("Vehicle Assignment Approved")
+                .message("Your vehicle " + req.getVehicle().getVehicleNumber() + " has been approved for school " + req.getSchool().getSchoolName())
+                .priority("MEDIUM")
+                .vehicleId(req.getVehicle().getVehicleId())
+                .schoolId(req.getSchool().getSchoolId())
+                .action("APPROVE")
+                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+                .targetRole("VEHICLE_OWNER")
+                .build();
+        
+        // Send notification to specific vehicle owner if user exists, otherwise broadcast to role
+        if (req.getOwner().getUser() != null && req.getOwner().getUser().getUId() != null) {
+            webSocketNotificationService.sendNotificationToUser(String.valueOf(req.getOwner().getUser().getUId()), notification);
+        } else {
+            webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
+        }
 
 	        String message = mappingExists ? 
             "Request approved and existing vehicle assignment reactivated" : 
@@ -164,20 +169,25 @@ public class VehicleAssignmentServiceImpl implements IVehicleAssignmentService{
 	        req.setUpdatedDate(LocalDateTime.now());
 	        requestRepo.save(req);
 
-	        // Send WebSocket notification to Vehicle Owner
-	        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
-	                .type("VEHICLE_ASSIGNMENT_REJECTED")
-	                .title("Vehicle Assignment Rejected")
-	                .message("Your vehicle ${req.getVehicle().getVehicleNumber()} assignment request for school ${req.getSchool().getSchoolName()} has been rejected")
-	                .priority("MEDIUM")
-	                .vehicleId(req.getVehicle().getVehicleId())
-	                .schoolId(req.getSchool().getSchoolId())
-	                .action("REJECT")
-	                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
-	                .targetRole("VEHICLE_OWNER")
-	                .build();
-	        
-	        webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
+        // Send WebSocket notification to Vehicle Owner
+        WebSocketNotificationDto notification = WebSocketNotificationDto.builder()
+                .type("VEHICLE_ASSIGNMENT_REJECTED")
+                .title("Vehicle Assignment Rejected")
+                .message("Your vehicle " + req.getVehicle().getVehicleNumber() + " assignment request for school " + req.getSchool().getSchoolName() + " has been rejected")
+                .priority("MEDIUM")
+                .vehicleId(req.getVehicle().getVehicleId())
+                .schoolId(req.getSchool().getSchoolId())
+                .action("REJECT")
+                .entityType("VEHICLE_ASSIGNMENT_REQUEST")
+                .targetRole("VEHICLE_OWNER")
+                .build();
+        
+        // Send notification to specific vehicle owner if user exists, otherwise broadcast to role
+        if (req.getOwner().getUser() != null && req.getOwner().getUser().getUId() != null) {
+            webSocketNotificationService.sendNotificationToUser(String.valueOf(req.getOwner().getUser().getUId()), notification);
+        } else {
+            webSocketNotificationService.sendNotificationToRole("VEHICLE_OWNER", notification);
+        }
 
 	        return new ApiResponse(true, "Request rejected", req);
 	    }

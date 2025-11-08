@@ -51,4 +51,7 @@ public interface TripRepository extends JpaRepository<Trip, Integer> {
 	// Find trips containing a specific student
 	List<Trip> findByStudentsContaining(Student student);
 
+	// Find trips by vehicle and school
+	List<Trip> findByVehicleAndSchool(com.app.entity.Vehicle vehicle, School school);
+
 }

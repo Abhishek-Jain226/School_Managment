@@ -29,4 +29,12 @@ public interface ISchoolService {
 
 	ApiResponse deleteStaff(Integer staffId, String deletedBy);
 
+	ApiResponse getSchoolNotifications(Integer schoolId);
+
+	// ----------- Get Classes for School -----------
+	ApiResponse getSchoolClasses(Integer schoolId);
+
+	// ----------- Get Sections for School -----------
+	ApiResponse getSchoolSections(Integer schoolId);
+
 }

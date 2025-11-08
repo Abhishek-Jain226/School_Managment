@@ -2,6 +2,7 @@ package com.app.Enum;
 
 public enum EventType {
 	
+	TRIP_STARTED,
 	PICKUP_FROM_PARENT,
     DROP_TO_SCHOOL,
     PICKUP_FROM_SCHOOL,

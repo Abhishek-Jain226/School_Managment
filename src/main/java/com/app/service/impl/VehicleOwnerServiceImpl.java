@@ -30,6 +30,7 @@ import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.PendingUserRequestDTO;
 import com.app.payload.request.VehicleOwnerRequestDto;
 import com.app.payload.response.ApiResponse;
+import com.app.payload.response.DispatchLogResponseDto;
 import com.app.payload.response.VehicleOwnerResponseDto;
 import com.app.repository.DispatchLogRepository;
 import com.app.repository.DriverRepository;
@@ -358,6 +359,10 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
             dashboardData.put("ownerEmail", owner.getEmail());
             dashboardData.put("ownerContact", owner.getContactNumber());
             dashboardData.put("isActive", owner.getUser() != null ? owner.getUser().getIsActive() : false);
+            // Add userId for fetching notifications
+            if (owner.getUser() != null) {
+                dashboardData.put("userId", owner.getUser().getUId());
+            }
             
             // Get vehicles count by filtering vehicles created by this owner
             // Vehicles are linked to owners via createdBy field (username or owner name)
@@ -1385,6 +1390,219 @@ public class VehicleOwnerServiceImpl implements IVehicleOwnerService {
                 .createdDate(owner.getCreatedDate())
                 .updatedBy(owner.getUpdatedBy())
                 .updatedDate(owner.getUpdatedDate())
+                .build();
+    }
+
+    @Override
+    public ApiResponse getVehicleOwnerNotifications(Integer userId) {
+        try {
+            System.out.println("🔍 Getting notifications for vehicle owner with userId: " + userId);
+            
+            // Find vehicle owner by userId
+            VehicleOwner owner = vehicleOwnerRepository.findByUser_uId(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with userId: " + userId));
+            
+            System.out.println("🔍 Found vehicle owner: " + owner.getName() + " (ID: " + owner.getOwnerId() + ")");
+            
+            // Get vehicles through SchoolVehicle relationship
+            List<SchoolVehicle> schoolVehicles = schoolVehicleRepository.findByOwner_OwnerId(owner.getOwnerId());
+            List<Vehicle> vehicles = schoolVehicles.stream()
+                    .map(SchoolVehicle::getVehicle)
+                    .collect(Collectors.toList());
+            
+            System.out.println("🔍 Found " + vehicles.size() + " vehicles for owner");
+            
+            // If no vehicles through relationship, try createdBy field
+            if (vehicles.isEmpty()) {
+                User ownerUser = owner.getUser();
+                String username = ownerUser != null ? ownerUser.getUserName() : null;
+                
+                if (username != null) {
+                    vehicles = vehicleRepository.findByCreatedBy(username);
+                    System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using username");
+                }
+                
+                if (vehicles.isEmpty()) {
+                    vehicles = vehicleRepository.findByCreatedBy(owner.getName());
+                    System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using owner name");
+                }
+            }
+            
+            if (vehicles.isEmpty()) {
+                System.out.println("⚠️ No vehicles found for owner");
+                return new ApiResponse(true, "No vehicles found for this owner", new ArrayList<>());
+            }
+            
+            // Get all dispatch logs for all vehicles
+            List<DispatchLog> allLogs = new ArrayList<>();
+            for (Vehicle vehicle : vehicles) {
+                List<DispatchLog> vehicleLogs = dispatchLogRepository.findByVehicle_VehicleIdOrderByCreatedDateDesc(vehicle.getVehicleId());
+                allLogs.addAll(vehicleLogs);
+            }
+            
+            System.out.println("🔍 Found " + allLogs.size() + " total dispatch logs for owner's vehicles");
+            
+            // Limit to last 10 for dashboard performance
+            List<DispatchLog> limitedLogs = allLogs.stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
+            
+            // Convert to DTOs to avoid circular reference issues
+            List<DispatchLogResponseDto> notificationDtos = limitedLogs.stream()
+                    .map(this::mapToDispatchLogDto)
+                    .collect(Collectors.toList());
+            
+            return new ApiResponse(true, "Notifications fetched successfully", notificationDtos);
+            
+                  } catch (Exception e) {
+              System.out.println("❌ Error fetching vehicle owner notifications: " + e.getMessage());
+              return new ApiResponse(false, "Error fetching vehicle owner notifications: " + e.getMessage(), null);
+          }
+      }
+
+    public ApiResponse getVehicleOwnerNotificationsByOwnerId(Integer ownerId) {
+        try {
+            System.out.println("🔍 Getting notifications for vehicle owner with ownerId: " + ownerId);
+
+            // Find vehicle owner by ownerId (direct lookup - no need to go through user)
+            VehicleOwner owner = vehicleOwnerRepository.findById(ownerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle owner not found with ownerId: " + ownerId));
+
+            System.out.println("🔍 Found vehicle owner: " + owner.getName() + " (ID: " + owner.getOwnerId() + ")");
+
+            // Get vehicles through SchoolVehicle relationship
+            List<SchoolVehicle> schoolVehicles = schoolVehicleRepository.findByOwner_OwnerId(owner.getOwnerId());
+            List<Vehicle> vehicles = schoolVehicles.stream()
+                    .map(SchoolVehicle::getVehicle)
+                    .collect(Collectors.toList());
+
+            System.out.println("🔍 Found " + vehicles.size() + " vehicles for owner");
+
+            // If no vehicles through relationship, try createdBy field
+            if (vehicles.isEmpty()) {
+                User ownerUser = owner.getUser();
+                String username = ownerUser != null ? ownerUser.getUserName() : null;
+
+                if (username != null) {
+                    vehicles = vehicleRepository.findByCreatedBy(username);
+                    System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using username");
+                }
+
+                if (vehicles.isEmpty()) {
+                    vehicles = vehicleRepository.findByCreatedBy(owner.getName());
+                    System.out.println("🔍 Fallback: Found " + vehicles.size() + " vehicles using owner name");
+                }
+            }
+
+            if (vehicles.isEmpty()) {
+                System.out.println("⚠️ No vehicles found for owner");
+                return new ApiResponse(true, "No vehicles found for this owner", new ArrayList<>());
+            }
+
+            // Get all dispatch logs for all vehicles
+            List<DispatchLog> allLogs = new ArrayList<>();
+            for (Vehicle vehicle : vehicles) {
+                List<DispatchLog> vehicleLogs = dispatchLogRepository.findByVehicle_VehicleIdOrderByCreatedDateDesc(vehicle.getVehicleId());
+                allLogs.addAll(vehicleLogs);
+            }
+
+            System.out.println("🔍 Found " + allLogs.size() + " total dispatch logs for owner's vehicles");
+
+            // Limit to last 10 for dashboard performance
+            List<DispatchLog> limitedLogs = allLogs.stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            // Convert to DTOs to avoid circular reference issues
+            List<DispatchLogResponseDto> notificationDtos = limitedLogs.stream()
+                    .map(this::mapToDispatchLogDto)
+                    .collect(Collectors.toList());
+
+            return new ApiResponse(true, "Notifications fetched successfully", notificationDtos);
+
+        } catch (Exception e) {
+            System.out.println("❌ Error fetching vehicle owner notifications: " + e.getMessage());
+            return new ApiResponse(false, "Error fetching vehicle owner notifications: " + e.getMessage(), null);
+        }
+    }
+
+    // ---------------- Mapper ----------------
+    private DispatchLogResponseDto mapToDispatchLogDto(DispatchLog log) {
+        if (log == null) {
+            return null;
+        }
+        
+        // Extract simple values to avoid any Hibernate proxy issues
+        Integer dispatchLogId = log.getDispatchLogId();
+        String remarks = log.getRemarks();
+        String createdBy = log.getCreatedBy();
+        LocalDateTime createdDate = log.getCreatedDate();
+        String updatedBy = log.getUpdatedBy();
+        LocalDateTime updatedDate = log.getUpdatedDate();
+        String eventTypeStr = log.getEventType() != null ? log.getEventType().name() : null;
+        
+        // Extract IDs and names with null checks to avoid lazy loading issues
+        Integer tripId = null;
+        String tripName = null;
+        try {
+            if (log.getTrip() != null) {
+                tripId = log.getTrip().getTripId();
+                tripName = log.getTrip().getTripName();
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading exceptions
+            System.out.println("Warning: Could not access trip data: " + e.getMessage());
+        }
+        
+        Integer studentId = null;
+        String studentName = null;
+        try {
+            if (log.getStudent() != null) {
+                studentId = log.getStudent().getStudentId();
+                studentName = log.getStudent().getFirstName() + " " + log.getStudent().getLastName();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access student data: " + e.getMessage());
+        }
+        
+        Integer schoolId = null;
+        String schoolName = null;
+        try {
+            if (log.getSchool() != null) {
+                schoolId = log.getSchool().getSchoolId();
+                schoolName = log.getSchool().getSchoolName();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access school data: " + e.getMessage());
+        }
+        
+        Integer vehicleId = null;
+        String vehicleNumber = null;
+        try {
+            if (log.getVehicle() != null) {
+                vehicleId = log.getVehicle().getVehicleId();
+                vehicleNumber = log.getVehicle().getVehicleNumber();
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not access vehicle data: " + e.getMessage());
+        }
+        
+        return DispatchLogResponseDto.builder()
+                .dispatchLogId(dispatchLogId)
+                .tripId(tripId)
+                .tripName(tripName)
+                .studentId(studentId)
+                .studentName(studentName)
+                .schoolId(schoolId)
+                .schoolName(schoolName)
+                .vehicleId(vehicleId)
+                .vehicleNumber(vehicleNumber)
+                .eventType(eventTypeStr)
+                .remarks(remarks)
+                .createdBy(createdBy)
+                .createdDate(createdDate)
+                .updatedBy(updatedBy)
+                .updatedDate(updatedDate)
                 .build();
     }
 }

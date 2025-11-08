@@ -24,7 +24,6 @@ import com.app.entity.School;
 import com.app.entity.SectionMaster;
 import com.app.entity.Student;
 import com.app.entity.StudentParent;
-import com.app.entity.User;
 import com.app.exception.ResourceNotFoundException;
 import com.app.payload.request.BulkStudentImportRequestDto;
 import com.app.payload.request.PendingUserRequestDTO;
@@ -161,14 +160,15 @@ public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
                 String parentEmail = generateParentEmail(studentDto, request.getSchoolDomain());
                 
                 // Create student
-                Student student = createStudent(studentDto, school);
+                Student student = createStudent(studentDto, school, request.getCreatedBy());
                 Student savedStudent = studentRepository.save(student);
                 
                 // Create student-parent relationship
-                StudentParent studentParent = createStudentParent(savedStudent, studentDto);
+                StudentParent studentParent = createStudentParent(savedStudent, studentDto, request.getCreatedBy());
                 StudentParent savedStudentParent = studentParentRepository.save(studentParent);
                 
-                // Create pending user for parent activation
+                // ✅ Create pending user for parent activation
+                // User, UserRole, and SchoolUser will be created when parent activates account (clicks activation link)
                 if (request.getSendActivationEmails()) {
                     createPendingUserForParent(savedStudent, savedStudentParent, parentEmail, parentRole, request.getCreatedBy());
                 }
@@ -354,7 +354,7 @@ public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
             student.getFirstName() + " " + student.getLastName());
     }
     
-    private Student createStudent(StudentRequestDto request, School school) {
+    private Student createStudent(StudentRequestDto request, School school, String createdBy) {
         ClassMaster classMaster = null;
         SectionMaster sectionMaster = null;
         
@@ -366,6 +366,7 @@ public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
             sectionMaster = sectionMasterRepository.findBySectionIdAndSchoolSchoolId(request.getSectionId(), school.getSchoolId());
         }
         
+        // ✅ Use the provided createdBy (not "Bulk import")
         return Student.builder()
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
@@ -381,25 +382,32 @@ public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
             .sectionMaster(sectionMaster)
             .isActive(true)
             .createdDate(LocalDateTime.now())
-            .createdBy(request.getCreatedBy())
+            .createdBy(createdBy)  // ✅ Use actual creator name
             .build();
     }
     
-    private StudentParent createStudentParent(Student student, StudentRequestDto request) {
+    private StudentParent createStudentParent(Student student, StudentRequestDto request, String createdBy) {
+        // ✅ Use parentRelation from request if provided, otherwise default to "GUARDIAN" (matches normal registration)
+        String relation = (request.getParentRelation() != null && !request.getParentRelation().trim().isEmpty()) 
+            ? request.getParentRelation() 
+            : "GUARDIAN";  // Default to GUARDIAN instead of "Father"
+        
         return StudentParent.builder()
             .student(student)
-            .relation("Father")
+            .relation(relation)
             .createdDate(LocalDateTime.now())
-            .createdBy(request.getCreatedBy())
+            .createdBy(createdBy)  // ✅ Use actual creator name
             .build();
     }
     
     private void createPendingUserForParent(Student student, StudentParent studentParent, 
                                           String parentEmail, Role parentRole, String createdBy) {
         try {
+            // ✅ FIX: Use "PARENT" entity type (same as normal registration) and StudentParent ID
+            // This ensures activation flow can properly create SchoolUser and UserRole entries
             PendingUserRequestDTO pendingReq = PendingUserRequestDTO.builder()
-                .entityType("STUDENT_PARENT")
-                .entityId(student.getStudentId().longValue())
+                .entityType("PARENT")  // ✅ Changed from "STUDENT_PARENT" to "PARENT" to match activation flow
+                .entityId(studentParent.getStudentParentId().longValue())  // ✅ Changed from student.getStudentId() to studentParent.getStudentParentId()
                 .email(parentEmail)
                 .contactNumber(student.getPrimaryContactNumber())
                 .roleId(parentRole.getRoleId())
@@ -407,7 +415,8 @@ public class BulkStudentImportServiceImpl implements IBulkStudentImportService {
                 .build();
             
             pendingUserService.createPendingUser(pendingReq);
-            log.info("Created pending user for parent: {}", parentEmail);
+            log.info("Created pending user for parent: {} with entityType=PARENT, entityId={}", 
+                    parentEmail, studentParent.getStudentParentId());
             
         } catch (Exception e) {
             log.error("Failed to create pending user for parent {}: {}", parentEmail, e.getMessage());

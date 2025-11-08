@@ -46,7 +46,7 @@ public interface IDriverService {
 
 	ApiResponse getDriverReports(Integer driverId);
 
-	ApiResponse send5MinuteAlert(Integer driverId, Integer tripId);
+	ApiResponse send5MinuteAlert(Integer driverId, Integer tripId, Integer studentId);
 
 	// Context-Sensitive Student Actions
 	ApiResponse markPickupFromHome(Integer driverId, Integer tripId, Integer studentId);
@@ -57,9 +57,12 @@ public interface IDriverService {
 
 	ApiResponse markDropToHome(Integer driverId, Integer tripId, Integer studentId);
 
-	ApiResponse getDriverLocation(Integer driverId);
+	    ApiResponse getDriverLocation(Integer driverId);
 
-	// Location Tracking
-	ApiResponse updateDriverLocation(Integer driverId, Map<String, Object> locationData);
+    // Location Tracking
+    ApiResponse updateDriverLocation(Integer driverId, Map<String, Object> locationData);
+
+    // Save location update for active trip
+    ApiResponse saveLocationUpdate(Integer driverId, Integer tripId, Double latitude, Double longitude, String address);
 
 }

@@ -75,6 +75,24 @@ public class SchoolController {
         return ResponseEntity.ok(schoolService.getTodayAttendance(schoolId));
     }
 
+    // ----------- Get Notifications for School -----------
+    @GetMapping("/{schoolId}/notifications")
+    public ResponseEntity<ApiResponse> getSchoolNotifications(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getSchoolNotifications(schoolId));
+    }
+
+    // ----------- Get Classes for School -----------
+    @GetMapping("/{schoolId}/classes")
+    public ResponseEntity<ApiResponse> getSchoolClasses(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getSchoolClasses(schoolId));
+    }
+
+    // ----------- Get Sections for School -----------
+    @GetMapping("/{schoolId}/sections")
+    public ResponseEntity<ApiResponse> getSchoolSections(@PathVariable Integer schoolId) {
+        return ResponseEntity.ok(schoolService.getSchoolSections(schoolId));
+    }
+
     // ----------- Get All Staff by School -----------
 //    @GetMapping("/{schoolId}/staff")
 //    public ResponseEntity<ApiResponse> getAllStaffBySchool(@PathVariable Integer schoolId) {

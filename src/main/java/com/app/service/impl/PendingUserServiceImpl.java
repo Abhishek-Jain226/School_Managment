@@ -223,7 +223,7 @@ public class PendingUserServiceImpl implements IPendingUserService {
         if (pending.getTokenExpiry().isBefore(LocalDateTime.now()))
             return new ApiResponse(false, "Token expired", null);
 
-        // 1. Create User
+        // 1. Create User (users are not created during bulk import, only during activation)
         User user = User.builder()
                 .userName(userName != null && !userName.isBlank() ? userName : pending.getEmail().split("@")[0])
                 .password(passwordEncoder.encode(rawPassword))
@@ -235,6 +235,7 @@ public class PendingUserServiceImpl implements IPendingUserService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        System.out.println("Created new user for: " + pending.getEmail());
 
         // 2. Assign Role (will be done in entity-specific sections)
         // UserRole creation moved to entity-specific sections to avoid duplicates
@@ -264,45 +265,70 @@ public class PendingUserServiceImpl implements IPendingUserService {
                     .build();
             schoolUserRepository.save(schoolUser);
 
-        } else if ("PARENT".equalsIgnoreCase(pending.getEntityType())) {
-            // Create UserRole for PARENT entity
-            UserRole userRole = UserRole.builder()
-                    .user(savedUser)
-                    .role(pending.getRole())
-                    .isActive(true)
-                    .createdBy("system")
-                    .createdDate(LocalDateTime.now())
-                    .build();
-            userRoleRepository.save(userRole);
+        } else if ("PARENT".equalsIgnoreCase(pending.getEntityType()) || 
+                   "STUDENT_PARENT".equalsIgnoreCase(pending.getEntityType())) {
+            // ✅ Support both "PARENT" and "STUDENT_PARENT" for backward compatibility
             
-            // link StudentParent
+            // link StudentParent (if not already linked)
             StudentParent sp = studentParentRepository.findById(pending.getEntityId().intValue())
-                    .orElseThrow(() -> new ResourceNotFoundException("StudentParent mapping not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("StudentParent mapping not found with ID: " + pending.getEntityId()));
 
-            sp.setParentUser(savedUser);
-            sp.setUpdatedBy("system");
-            sp.setUpdatedDate(LocalDateTime.now());
-            studentParentRepository.save(sp);
+            if (sp.getParentUser() == null || !sp.getParentUser().getUId().equals(savedUser.getUId())) {
+                sp.setParentUser(savedUser);
+                sp.setUpdatedBy("system");
+                sp.setUpdatedDate(LocalDateTime.now());
+                studentParentRepository.save(sp);
+            }
             
-            // ✅ Create SchoolUser entry for student when parent activates
+            // ✅ Create UserRole if it doesn't exist (may already exist from bulk import)
+            boolean userRoleExists = userRoleRepository.findByUser(savedUser).stream()
+                    .anyMatch(ur -> ur.getRole().getRoleId().equals(pending.getRole().getRoleId()));
+            
+            if (!userRoleExists) {
+                UserRole userRole = UserRole.builder()
+                        .user(savedUser)
+                        .role(pending.getRole())
+                        .isActive(true)
+                        .createdBy("system")
+                        .createdDate(LocalDateTime.now())
+                        .build();
+                userRoleRepository.save(userRole);
+                System.out.println("Created UserRole for user: " + savedUser.getEmail() + " with role: " + pending.getRole().getRoleName());
+            } else {
+                System.out.println("UserRole already exists for user: " + savedUser.getEmail() + " with role: " + pending.getRole().getRoleName());
+            }
+            
+            // ✅ Create SchoolUser entry if it doesn't exist (may already exist from bulk import)
             // Get student's school from StudentParent relationship
             School studentSchool = sp.getStudent().getSchool();
             
-            // Get STUDENT role (if exists) or use PARENT role as fallback
-            Role studentRole = roleRepository.findByRoleName("STUDENT")
-                    .orElse(pending.getRole()); // Fallback to PARENT role if STUDENT role doesn't exist
+            if (studentSchool == null) {
+                throw new ResourceNotFoundException("Student's school not found for StudentParent ID: " + sp.getStudentParentId());
+            }
             
-            // Create SchoolUser entry for student
-            SchoolUser studentSchoolUser = SchoolUser.builder()
-                    .user(savedUser) // Link to parent's User account (student will use parent's account)
-                    .school(studentSchool)
-                    .role(studentRole)
-                    .isActive(true)
-                    .createdBy("system")
-                    .createdDate(LocalDateTime.now())
-                    .build();
+            // Check if SchoolUser already exists to avoid duplicates
+            boolean schoolUserExists = schoolUserRepository.existsBySchoolAndUserAndRole(studentSchool, savedUser, pending.getRole());
             
-            schoolUserRepository.save(studentSchoolUser);
+            if (!schoolUserExists) {
+                // ✅ Create SchoolUser with PARENT role (parent accesses system as parent role)
+                SchoolUser parentSchoolUser = SchoolUser.builder()
+                        .user(savedUser) // Link to parent's User account
+                        .school(studentSchool)
+                        .role(pending.getRole()) // Use PARENT role (not STUDENT role)
+                        .isActive(true)
+                        .createdBy("system")
+                        .createdDate(LocalDateTime.now())
+                        .build();
+                schoolUserRepository.save(parentSchoolUser);
+                System.out.println("Created SchoolUser for user: " + savedUser.getEmail() + 
+                                 ", school: " + studentSchool.getSchoolId() + 
+                                 ", role: " + pending.getRole().getRoleName());
+            } else {
+                // Already exists (created during bulk import), log but don't error
+                System.out.println("SchoolUser already exists for user: " + savedUser.getEmail() + 
+                                 ", school: " + studentSchool.getSchoolId() + 
+                                 ", role: " + pending.getRole().getRoleName() + " (from bulk import)");
+            }
         }
         
         else if ("VEHICLE_OWNER".equalsIgnoreCase(pending.getEntityType())) {

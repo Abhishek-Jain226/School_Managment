@@ -32,4 +32,6 @@ public interface DispatchLogRepository extends JpaRepository<DispatchLog, Intege
 
 	List<DispatchLog> findByDriverOrderByCreatedDateDesc(Driver driver);
 
+	List<DispatchLog> findBySchool_SchoolIdOrderByCreatedDateDesc(Integer schoolId);
+
 }
